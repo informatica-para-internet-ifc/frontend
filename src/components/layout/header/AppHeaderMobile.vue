@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
@@ -9,37 +9,54 @@ import SidebarDrawer from './SidebarDrawer.vue'
 
 const route = useRoute()
 const drawerOpen = ref(false)
+const scrolled = ref(false)
 
 function close() { drawerOpen.value = false }
 function toggleDrawer() { drawerOpen.value = !drawerOpen.value }
 
+function onScroll() {
+  scrolled.value = window.scrollY > 8
+}
+
 watch(() => route.fullPath, () => close())
 watch(drawerOpen, (o) => { document.body.style.overflow = o ? 'hidden' : '' })
+
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 </script>
 
 <template>
-  <header class="mobileHeader">
+  <header class="mobileHeader" :class="{ scrolled }">
+    <div class="mobileMainBar">
+      <div class="mobileTopAccent"></div>
 
-    <div class="mobileHeaderInner">
-      <button
-        class="menuBtn"
-        :class="{ active: drawerOpen }"
-        aria-label="Abrir menu"
-        @click="toggleDrawer"
-      >
-        <span class="menuIcon">
-          <span class="menuLine menuLineTop"></span>
-          <span class="menuLine menuLineMid"></span>
-          <span class="menuLine menuLineBot"></span>
-        </span>
-      </button>
+      <div class="mobileHeaderInner">
+        <button
+          class="menuBtn"
+          :class="{ active: drawerOpen }"
+          aria-label="Abrir menu"
+          @click="toggleDrawer"
+        >
+          <span class="menuIcon">
+            <span class="menuLine menuLineTop"></span>
+            <span class="menuLine menuLineMid"></span>
+            <span class="menuLine menuLineBot"></span>
+          </span>
+        </button>
 
-      <AppLogo small />
+        <AppLogo small />
 
-      <div class="mobileActions">
-        <SearchButton />
-        <ThemeToggle />
-        <UserButton />
+        <div class="mobileActions">
+          <SearchButton />
+          <ThemeToggle />
+          <UserButton />
+        </div>
       </div>
     </div>
   </header>
@@ -54,11 +71,43 @@ watch(drawerOpen, (o) => { document.body.style.overflow = o ? 'hidden' : '' })
   left: 0;
   right: 0;
   z-index: 100;
-  height: var(--header-h);
+  display: flex;
+  flex-direction: column;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border-bottom: 1px solid var(--glass-border);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out);
+}
+
+.mobileHeader.scrolled {
+  box-shadow: var(--shadow-md), 0 0 60px var(--color-navy-accent-muted);
+  border-bottom-color: var(--color-border-2);
+}
+
+.mobileMainBar {
+  position: relative;
+  height: var(--header-h);
+  flex-shrink: 0;
+}
+
+.mobileTopAccent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 3;
+  background: linear-gradient(90deg, var(--color-navy-accent), transparent 60%);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.mobileHeader.scrolled .mobileTopAccent {
+  opacity: 0.6;
 }
 
 .mobileHeaderInner {

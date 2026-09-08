@@ -1,10 +1,89 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+
+    <title>Informática para Internet · IFC Campus Araquari</title>
+    <meta
+      name="description"
+      content="Plataforma educacional do Curso Técnico em Informática para Internet do IFC Campus Araquari. Atividades, listas, projetos e materiais organizados por ano e disciplina, com acesso livre para todos os alunos."
+    >
+    <meta name="author" content="Curso Técnico em Informática · IFC Campus Araquari">
+    <meta name="keywords" content="informática, internet, IFC, Araquari, curso técnico, atividades, banco de dados, desenvolvimento web, programação">
+    <meta name="color-scheme" content="dark light">
+
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Informática para Internet">
+    <meta property="og:title" content="Informática para Internet · IFC Campus Araquari">
+    <meta
+      property="og:description"
+      content="Atividades, listas, projetos e materiais do Curso Técnico em Informática, com acesso livre para todos os alunos."
+    >
+    <meta property="og:locale" content="pt_BR">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Informática para Internet · IFC Campus Araquari">
+    <meta
+      name="twitter:description"
+      content="Atividades, listas, projetos e materiais do Curso Técnico em Informática, com acesso livre para todos os alunos."
+    >
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Informática para Internet · IFC Campus Araquari",
+        "alternateName": "Informática para Internet",
+        "description": "Plataforma educacional do Curso Técnico em Informática para Internet do IFC Campus Araquari. Atividades, listas, projetos e materiais organizados por ano e disciplina.",
+        "inLanguage": "pt-BR",
+        "publisher": {
+          "@type": "EducationalOrganization",
+          "name": "Curso Técnico em Informática para Internet",
+          "parentOrganization": {
+            "@type": "CollegeOrUniversity",
+            "name": "Instituto Federal Catarinense - Campus Araquari"
+          }
+        }
+      }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    >
+
+    <!-- Aplica o tema antes da primeira renderização para evitar flash -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('sio-theme')
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+          document.documentElement.setAttribute('data-theme', theme)
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

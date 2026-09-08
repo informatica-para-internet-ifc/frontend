@@ -3,7 +3,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
-import SearchField from '../ui/search/SearchField.vue'
 import SearchButton from '../ui/search/SearchButton.vue'
 import UserButton from '../ui/user/UserButton.vue'
 import AnosDropdown from './AnosDropdown.vue'
@@ -54,13 +53,15 @@ onUnmounted(() => {
           </RouterLink>
 
           <AnosDropdown />
+
+          <RouterLink to="/sobre" class="navLink" :class="{ active: isActive('sobre') }">
+            <i class="mdi mdi-information-outline"></i>
+            <span>Sobre</span>
+          </RouterLink>
         </nav>
 
         <div class="headerActions">
-          <SearchField class="headerSearch" />
-          <span class="tip headerSearchCompact" data-tip="Buscar (Ctrl K)">
-            <SearchButton />
-          </span>
+          <SearchButton />
 
           <div class="actionsDivider" aria-hidden="true"></div>
 
@@ -74,7 +75,6 @@ onUnmounted(() => {
           </div>
 
           <RouterLink v-if="auth.logged" to="/criar-atividade" class="createBtn">
-            <div class="createShine"></div>
             <span class="createIcon">
               <i class="mdi mdi-plus"></i>
             </span>
@@ -106,7 +106,7 @@ onUnmounted(() => {
 }
 
 .header.scrolled {
-  box-shadow: var(--shadow-md), 0 0 60px var(--color-navy-accent-muted);
+  box-shadow: var(--shadow-sm);
   border-bottom-color: var(--color-border-2);
 }
 
@@ -134,7 +134,6 @@ onUnmounted(() => {
   opacity: 0.6;
 }
 
-/* ── Animated Border ── */
 .headerBorder {
   position: absolute;
   bottom: -1px;
@@ -144,26 +143,6 @@ onUnmounted(() => {
   z-index: 1;
   background: linear-gradient(90deg, transparent 0%, var(--color-border-2) 15%, var(--color-border-2) 85%, transparent 100%);
 }
-
-.headerBorder::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(from var(--angle, 0deg), transparent, var(--color-navy-accent-muted), transparent, var(--color-navy-accent-muted), transparent);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
-  animation: borderSpin 4s linear infinite;
-}
-
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes borderSpin { to { --angle: 360deg; } }
-
-.header.scrolled .headerBorder::before { opacity: 1; }
 
 /* ── Reading Progress ── */
 .headerProgress {
@@ -286,10 +265,6 @@ onUnmounted(() => {
   background: var(--color-border-2);
 }
 
-.tip.headerSearchCompact {
-  display: none;
-}
-
 /* ── Tooltips ── */
 .tip {
   position: relative;
@@ -355,39 +330,22 @@ onUnmounted(() => {
   gap: var(--sp-2);
   padding: 5px var(--sp-4) 5px 5px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--color-navy), var(--color-navy-light));
-  color: #ffffff;
+  background: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 2px 12px var(--color-navy-accent-muted);
-  overflow: hidden;
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.createShine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.6s var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .createBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px var(--color-navy-accent-muted);
-}
-
-.createBtn:hover .createShine {
-  left: 200%;
+  background: var(--color-navy-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .createBtn:active {
-  transform: translateY(0) scale(0.97);
-  box-shadow: 0 1px 8px var(--color-navy-accent-muted);
+  transform: translateY(0);
 }
 
 .createIcon {
@@ -397,12 +355,7 @@ onUnmounted(() => {
   width: 26px;
   height: 26px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.18);
-  transition: transform var(--duration-fast) var(--ease-spring);
-}
-
-.createBtn:hover .createIcon {
-  transform: rotate(90deg) scale(1.1);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .createIcon i {
@@ -410,11 +363,6 @@ onUnmounted(() => {
 }
 
 /* ── Responsive ── */
-@media (max-width: 1200px) {
-  .headerSearch { display: none; }
-  .tip.headerSearchCompact { display: inline-flex; }
-}
-
 @media (max-width: 1080px) {
   .actionsDivider { display: none; }
 }

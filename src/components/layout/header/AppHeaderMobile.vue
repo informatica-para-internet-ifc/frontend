@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
@@ -10,6 +10,7 @@ import SidebarDrawer from './SidebarDrawer.vue'
 const route = useRoute()
 const drawerOpen = ref(false)
 const scrolled = ref(false)
+const menuBtnEl = ref(null)
 
 function close() { drawerOpen.value = false }
 function toggleDrawer() { drawerOpen.value = !drawerOpen.value }
@@ -18,16 +19,34 @@ function onScroll() {
   scrolled.value = window.scrollY > 8
 }
 
+function onKeydown(e) {
+  if (e.key === 'Escape' && drawerOpen.value) close()
+}
+
 watch(() => route.fullPath, () => close())
-watch(drawerOpen, (o) => { document.body.style.overflow = o ? 'hidden' : '' })
+
+watch(drawerOpen, (o) => {
+  document.body.style.overflow = o ? 'hidden' : ''
+  if (o) {
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        document.querySelector('#sidebar-drawer')?.querySelector('a, button')?.focus()
+      })
+    })
+  } else {
+    menuBtnEl.value?.focus()
+  }
+})
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
+  document.addEventListener('keydown', onKeydown)
   onScroll()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
+  document.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -38,9 +57,12 @@ onUnmounted(() => {
 
       <div class="mobileHeaderInner">
         <button
+          ref="menuBtnEl"
           class="menuBtn"
           :class="{ active: drawerOpen }"
-          aria-label="Abrir menu"
+          aria-label="Abrir menu de navegação"
+          aria-controls="sidebar-drawer"
+          :aria-expanded="drawerOpen"
           @click="toggleDrawer"
         >
           <span class="menuIcon">

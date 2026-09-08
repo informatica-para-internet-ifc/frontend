@@ -26,7 +26,7 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
     </Transition>
 
     <Transition name="drawer">
-      <aside v-if="open" class="sidebar">
+      <aside id="sidebar-drawer" v-if="open" class="sidebar" role="dialog" aria-modal="true" aria-label="Menu de navegação">
         <div class="sidebarDots"></div>
         <div class="sidebarBorder"></div>
 
@@ -65,13 +65,25 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
             Buscar
           </RouterLink>
 
-          <div class="sidebarDivider" :style="{ '--i': 6 }"></div>
+          <RouterLink to="/sobre" class="sidebarLink" :class="{ active: isActive('/sobre') }" :style="{ '--i': 6 }" @click="emit('close')">
+            <i class="mdi mdi-information-outline"></i>
+            Sobre
+          </RouterLink>
 
-          <RouterLink v-if="auth.logged" to="/criar-atividade" class="sidebarLink sidebarLinkAccent" :class="{ active: isActive('/criar-atividade') }" :style="{ '--i': 7 }" @click="emit('close')">
+          <div class="sidebarDivider" :style="{ '--i': 7 }"></div>
+
+          <RouterLink v-if="auth.logged" to="/criar-atividade" class="sidebarLink sidebarLinkAccent" :class="{ active: isActive('/criar-atividade') }" :style="{ '--i': 8 }" @click="emit('close')">
             <i class="mdi mdi-plus-circle"></i>
             Criar Atividade
           </RouterLink>
 
+          <div class="sidebarInfo" :style="{ '--i': 9 }">
+            <i class="mdi mdi-school-outline"></i>
+            <div>
+              <strong>Curso Técnico em Informática</strong>
+              <span>IFC Campus Araquari</span>
+            </div>
+          </div>
         </nav>
 
         <div class="sidebarFooter">
@@ -124,7 +136,7 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   pointer-events: none;
 }
 
-/* ── Animated Border ── */
+/* ── Border ── */
 .sidebarBorder {
   position: absolute;
   right: -1px;
@@ -134,18 +146,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   z-index: 1;
   background: linear-gradient(180deg, transparent 0%, var(--color-border-2) 15%, var(--color-border-2) 85%, transparent 100%);
 }
-
-.sidebarBorder::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(from 0deg, transparent, var(--color-navy-accent-muted), transparent, var(--color-navy-accent-muted), transparent);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
-  animation: borderSpin 4s linear infinite;
-}
-
-@keyframes borderSpin { to { transform: rotate(360deg); } }
 
 
 /* ── Header ── */
@@ -243,45 +243,42 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 .sidebarLink.active::before { transform: translateY(-50%) scaleY(1); }
 
 .sidebarLinkAccent {
-  color: #ffffff;
+  color: var(--color-text-on-accent);
   background: var(--color-navy-accent);
   font-weight: 600;
-  box-shadow: 0 1px 4px var(--color-navy-accent-muted);
   transition: all 0.3s var(--ease-out);
 }
 
 .sidebarLinkAccent i {
-  transition: transform 0.3s var(--ease-spring);
+  transition: transform 0.3s var(--ease-out);
 }
 
 .sidebarLinkAccent:hover {
   background: var(--color-navy-accent-hover, var(--color-navy-accent));
-  color: #ffffff;
+  color: var(--color-text-on-accent);
   padding-left: var(--sp-5);
-  box-shadow: 0 4px 16px var(--color-navy-accent-muted);
   transform: translateY(-1px);
 }
 
 .sidebarLinkAccent:hover i {
-  color: #ffffff;
-  transform: scale(1.15) rotate(-90deg);
+  color: var(--color-text-on-accent);
+  transform: scale(1.1);
 }
 
 .sidebarLinkAccent.active {
   background: var(--color-navy-accent);
-  color: #ffffff;
-  box-shadow: 0 1px 4px var(--color-navy-accent-muted);
+  color: var(--color-text-on-accent);
 }
 
 .sidebarLinkAccent.active i {
-  color: #ffffff;
+  color: var(--color-text-on-accent);
 }
 
 .sidebarLinkAccent::before {
   background: rgba(255, 255, 255, 0.4);
 }
 
-.sidebarLinkAccent.active::before { background: #ffffff; }
+.sidebarLinkAccent.active::before { background: var(--color-text-on-accent); }
 
 .sidebarLinkSub {
   padding-left: var(--sp-8);
@@ -292,6 +289,43 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   height: 1px;
   margin: var(--sp-2) var(--sp-4);
   background: linear-gradient(90deg, var(--color-border-1), var(--color-border-2), var(--color-border-1));
+}
+
+.sidebarInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: auto;
+  padding: var(--sp-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border-2);
+  animation: linkEnter 0.4s var(--ease-out) both;
+  animation-delay: calc(0.03s * var(--i, 0));
+}
+
+.sidebarInfo i {
+  font-size: 1.4rem;
+  color: var(--color-navy-accent);
+  flex-shrink: 0;
+}
+
+.sidebarInfo div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebarInfo strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-2);
+}
+
+.sidebarInfo span {
+  font-size: var(--text-xs);
+  color: var(--color-text-5);
 }
 
 .sidebarLink i {

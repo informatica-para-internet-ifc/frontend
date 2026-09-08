@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { anos } from '../../../data/disciplinas.js'
 
@@ -7,6 +7,7 @@ const route = useRoute()
 const hovered = ref(false)
 const clicked = ref(false)
 const rootEl = ref(null)
+const triggerEl = ref(null)
 
 const open = computed(() => hovered.value || clicked.value)
 
@@ -33,12 +34,45 @@ function close() {
   hovered.value = false
 }
 
+function openPanel() {
+  clicked.value = true
+  hovered.value = false
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      rootEl.value?.querySelector('.panelItem')?.focus()
+    })
+  })
+}
+
+function moveFocus(dir) {
+  const items = [...(rootEl.value?.querySelectorAll('.panelItem') || [])]
+  if (!items.length) return
+  const idx = items.indexOf(document.activeElement)
+  const next =
+    idx === -1 ? (dir > 0 ? 0 : items.length - 1) : (idx + dir + items.length) % items.length
+  items[next].focus()
+}
+
 function onDocClick(e) {
   if (rootEl.value && !rootEl.value.contains(e.target)) close()
 }
 
 function onKey(e) {
-  if (e.key === 'Escape') close()
+  if (e.key === 'Escape') {
+    if (open.value) {
+      close()
+      triggerEl.value?.focus()
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (!open.value) openPanel()
+    else moveFocus(1)
+  } else if (e.key === 'ArrowUp') {
+    if (open.value) {
+      e.preventDefault()
+      moveFocus(-1)
+    }
+  }
 }
 
 watch(() => route.fullPath, () => close())
@@ -57,6 +91,7 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootEl" class="anosMenu" @mouseenter="hovered = true" @mouseleave="hovered = false">
     <button
+      ref="triggerEl"
       class="anosTrigger"
       :class="{ open, active: onAnoRoute }"
       type="button"
@@ -179,7 +214,7 @@ onBeforeUnmount(() => {
   top: calc(100% + var(--sp-3));
   left: 50%;
   transform: translateX(-50%);
-  width: 380px;
+  width: min(380px, calc(100vw - 2 * var(--sp-6)));
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border-2);

@@ -61,8 +61,8 @@ defineEmits(['click'])
 }
 
 .brand:hover .brandImg {
-  transform: scale(1.08);
-  filter: var(--color-logo-filter, none) drop-shadow(0 0 14px var(--color-navy-accent-muted));
+  transform: scale(1.05);
+  filter: var(--color-logo-filter, none);
 }
 
 .brandIcon.small .brandImg {

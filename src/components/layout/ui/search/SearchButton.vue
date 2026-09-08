@@ -1,7 +1,11 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
 const router = useRouter()
+
+const isActive = computed(() => route.name === 'search')
 
 function openSearch() {
   router.push({ name: 'search' })
@@ -9,7 +13,13 @@ function openSearch() {
 </script>
 
 <template>
-  <button class="searchBtn" aria-label="Buscar" @click="openSearch">
+  <button
+    class="searchBtn"
+    :class="{ active: isActive }"
+    type="button"
+    aria-label="Buscar"
+    @click="openSearch"
+  >
     <i class="mdi mdi-magnify"></i>
   </button>
 </template>
@@ -31,6 +41,10 @@ function openSearch() {
   flex-shrink: 0;
 }
 
+.searchBtn i {
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
 .searchBtn:hover {
   background: var(--color-navy-accent-muted);
   border-color: var(--color-navy-accent);
@@ -39,7 +53,21 @@ function openSearch() {
   transform: scale(1.05);
 }
 
+.searchBtn:hover i {
+  color: var(--color-navy-accent);
+}
+
 .searchBtn:active {
   transform: scale(0.92);
+}
+
+.searchBtn.active {
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+}
+
+.searchBtn.active i {
+  color: var(--color-navy-accent);
 }
 </style>

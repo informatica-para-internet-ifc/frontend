@@ -15,19 +15,14 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
 
 <template>
   <div class="anoView">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <div class="anoContent" v-if="ano">
+<div class="anoContent" v-if="ano">
       <div class="anoHeader" v-reveal>
         <button class="backBtn" @click="router.back()">
           <i class="mdi mdi-arrow-left"></i>
         </button>
         <div class="anoInfo">
           <div class="breadcrumb">
-            <RouterLink to="/anos">Anos</RouterLink>
+            <RouterLink to="/">Início</RouterLink>
             <i class="mdi mdi-chevron-right"></i>
             <span>{{ ano.label }}</span>
           </div>
@@ -42,7 +37,7 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
           :key="disc.id"
           :to="`/disciplina/${anoId}/${disc.id}`"
           class="disciplinaCard"
-          v-reveal="idx % 8"
+          v-reveal.left="idx"
         >
           <div class="discIcon">
             <i :class="`mdi ${disc.icon}`"></i>
@@ -121,34 +116,22 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
-  transition: all var(--duration-normal) var(--ease-spring);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.disciplinaCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--color-navy-accent);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 .disciplinaCard:hover {
-  background: var(--color-surface-3);
-  border-color: var(--color-border-2);
-  transform: translateX(4px) translateY(-1px);
+  border-color: var(--color-navy-accent);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.disciplinaCard:hover::before {
-  opacity: 1;
+.disciplinaCard:active {
+  transform: translateY(0);
 }
 
 .discIcon {
@@ -160,7 +143,7 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-spring);
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .disciplinaCard:hover .discIcon {
@@ -191,13 +174,13 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
 .discArrow {
   font-size: 1.2rem;
   color: var(--color-text-5);
-  transition: all var(--duration-normal) var(--ease-spring);
   flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
 .disciplinaCard:hover .discArrow {
   color: var(--color-navy-accent);
-  transform: translateX(6px) scale(1.1);
+  transform: translateX(3px);
 }
 
 @media (max-width: 480px) {

@@ -88,12 +88,7 @@ async function handleQuickLogin() {
 
 <template>
   <div class="profilePage">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <Transition name="card-switch" mode="out-in">
+<Transition name="card-switch" mode="out-in">
       <!-- ===== ADMIN PANEL ===== -->
       <div v-if="auth.isLoggedIn" key="logged" class="adminView">
         <div class="adminTopBar">
@@ -153,7 +148,7 @@ async function handleQuickLogin() {
             <i class="mdi mdi-chevron-right quickArrow"></i>
           </RouterLink>
 
-          <RouterLink to="/anos" class="quickCard">
+          <RouterLink to="/" class="quickCard">
             <div class="quickIcon">
               <i class="mdi mdi-school-outline"></i>
             </div>

@@ -142,10 +142,28 @@ function getVideoEmbed(url) {
   return null
 }
 
+function isDirectVideoUrl(url) {
+  if (!url) return false
+  return /\.(mp4|webm|mov|ogg|mkv)(?:$|\?)/i.test(url)
+}
+
 function getFileType(url) {
   if (!url) return ''
   const m = url.match(/\.([a-z0-9]{2,5})(?:$|\?)/i)
   return m ? m[1].toLowerCase() : ''
+}
+
+function getDownloadUrl(url, filename) {
+  if (!url) return url
+  const marker = '/upload/'
+  const idx = url.indexOf(marker)
+  if (idx === -1 || !url.includes('res.cloudinary.com')) return url
+
+  let flag = 'fl_attachment'
+  const safeName = filename?.trim().replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '_')
+  if (safeName) flag += `:${safeName}`
+
+  return `${url.slice(0, idx + marker.length)}${flag}${url.slice(idx + marker.length)}`
 }
 
 function getFileIcon(type) {
@@ -232,6 +250,25 @@ function exportPdf() {
   window.print()
 }
 
+async function downloadCover() {
+  try {
+    const resp = await fetch(atividade.value.capa)
+    if (!resp.ok) throw new Error('network')
+    const blob = await resp.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `capa-${atividade.value.title || 'atividade'}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    toast.error('Não foi possível baixar a imagem.')
+    window.open(atividade.value.capa, '_blank', 'noopener')
+  }
+}
+
 const printExpandAll = ref(false)
 function onBeforePrint() { printExpandAll.value = true }
 function onAfterPrint() { printExpandAll.value = false }
@@ -254,12 +291,14 @@ onBeforeUnmount(() => {
       <div class="readProgressBar" :style="{ width: `${readProgress}%` }"></div>
     </div>
 
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
+<div class="atividadeContent" v-if="atividade">
+      <div v-if="atividade.capa" class="ativCoverWrap animate-fade-in-up no-print">
+        <img :src="atividade.capa" alt="" class="ativCover" />
+        <button class="ativCoverDownload" title="Baixar imagem" @click="downloadCover">
+          <i class="mdi mdi-download"></i>
+        </button>
+      </div>
 
-    <div class="atividadeContent" v-if="atividade">
       <div class="ativHeader animate-fade-in-up">
         <button class="backBtn no-print" @click="router.back()">
           <i class="mdi mdi-arrow-left"></i>
@@ -274,7 +313,22 @@ onBeforeUnmount(() => {
           </div>
           <h1 class="ativTitle">{{ atividade.title }}</h1>
           <p v-if="atividade.desc" class="ativDesc">{{ atividade.desc }}</p>
+          <div v-if="atividade.tags?.length" class="ativTags">
+            <span v-for="tag in atividade.tags" :key="tag" class="ativTagChip">{{ tag }}</span>
+          </div>
           <div class="ativMeta">
+            <span class="metaItem" v-if="atividade.fixada">
+              <i class="mdi mdi-pin"></i>
+              Fixada
+            </span>
+            <span class="metaItem" v-if="atividade.dificuldade">
+              <i class="mdi mdi-speedometer"></i>
+              {{ { facil: 'Fácil', medio: 'Médio', dificil: 'Difícil' }[atividade.dificuldade] || atividade.dificuldade }}
+            </span>
+            <span class="metaItem" v-if="atividade.tempoEstimado">
+              <i class="mdi mdi-clock-outline"></i>
+              {{ atividade.tempoEstimado }}
+            </span>
             <span class="metaItem" v-if="questionCount > 0">
               <i class="mdi mdi-help-circle-outline"></i>
               {{ questionCount }} questão{{ questionCount > 1 ? 'ões' : '' }}
@@ -290,11 +344,11 @@ onBeforeUnmount(() => {
               :title="shareMsg === 'copiado' ? 'Link copiado!' : shareMsg === 'erro' ? 'Não foi possível copiar' : 'Compartilhar'"
             >
               <i :class="shareMsg === 'copiado' ? 'mdi mdi-check' : shareMsg === 'erro' ? 'mdi mdi-alert' : 'mdi mdi-share-variant'"></i>
-              {{ shareMsg === 'copiado' ? 'Link copiado!' : shareMsg === 'erro' ? 'Falhou' : 'Compartilhar' }}
+              <span class="shareBtnLabel">{{ shareMsg === 'copiado' ? 'Link copiado!' : shareMsg === 'erro' ? 'Falhou' : 'Compartilhar' }}</span>
             </button>
             <button class="shareBtn no-print" @click="exportPdf" title="Exportar como PDF">
               <i class="mdi mdi-file-pdf-box"></i>
-              Exportar PDF
+              <span class="shareBtnLabel">Exportar PDF</span>
             </button>
             <template v-if="auth.isLoggedIn">
               <RouterLink
@@ -303,11 +357,11 @@ onBeforeUnmount(() => {
                 title="Editar atividade"
               >
                 <i class="mdi mdi-pencil-outline"></i>
-                Editar
+                <span class="shareBtnLabel">Editar</span>
               </RouterLink>
               <button class="shareBtn deleteBtn no-print" @click="confirmDelete" title="Excluir atividade">
                 <i class="mdi mdi-delete-outline"></i>
-                Excluir
+                <span class="shareBtnLabel">Excluir</span>
               </button>
             </template>
           </div>
@@ -336,19 +390,19 @@ onBeforeUnmount(() => {
       <div v-if="hasBlocks" class="blocksView">
         <template v-for="(block, idx) in atividade.blocks" :key="idx">
 
-          <div v-if="block.type === 'text'" class="viewBlock viewText" v-reveal="idx % 8">
+          <div v-if="block.type === 'text'" class="viewBlock viewText">
             <p class="plainText">{{ block.content }}</p>
           </div>
 
-          <div v-else-if="block.type === 'markdown'" class="viewBlock viewMarkdown" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'markdown'" class="viewBlock viewMarkdown">
             <div class="mdRender" v-html="renderMarkdown(block.content)"></div>
           </div>
 
-          <div v-else-if="block.type === 'heading'" class="viewBlock viewHeading" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'heading'" class="viewBlock viewHeading">
             <component :is="`h${block.level}`" :id="`titulo-${slugify(block.content)}`" class="headingEl">{{ block.content }}</component>
           </div>
 
-          <div v-else-if="block.type === 'code'" class="viewBlock viewCode" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'code'" class="viewBlock viewCode">
             <div class="codeBlock">
               <div class="codeBlockHeader">
                 <span class="codeBlockLang">
@@ -368,18 +422,18 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'image' && block.url" class="viewBlock viewImage" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'image' && block.url" class="viewBlock viewImage">
             <img :src="block.url" :alt="block.alt || ''" class="viewImageEl" />
             <p v-if="block.alt" class="viewImageAlt">{{ block.alt }}</p>
           </div>
 
-          <div v-else-if="block.type === 'list'" class="viewBlock viewList" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'list'" class="viewBlock viewList">
             <component :is="block.ordered ? 'ol' : 'ul'" class="viewListEl">
               <li v-for="(item, i) in block.items.filter(Boolean)" :key="i">{{ item }}</li>
             </component>
           </div>
 
-          <div v-else-if="block.type === 'quote'" class="viewBlock viewQuote" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'quote'" class="viewBlock viewQuote">
             <blockquote class="quoteBox">
               <i class="mdi mdi-format-quote-open quoteIcon"></i>
               <p>{{ block.content }}</p>
@@ -387,14 +441,14 @@ onBeforeUnmount(() => {
             </blockquote>
           </div>
 
-          <div v-else-if="block.type === 'alert'" class="viewBlock viewAlert" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'alert'" class="viewBlock viewAlert">
             <div class="alertBox" :class="`alert-${block.tipo}`">
               <i :class="`mdi ${getAlertIcon(block.tipo)}`" class="alertBoxIcon"></i>
               <div class="mdRender" v-html="renderMarkdown(block.content)"></div>
             </div>
           </div>
 
-          <div v-else-if="block.type === 'link'" class="viewBlock viewLink" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'link'" class="viewBlock viewLink">
             <a :href="block.url" class="linkCard" target="_blank" rel="noopener">
               <div class="linkCardIcon">
                 <i class="mdi mdi-link-variant"></i>
@@ -408,7 +462,7 @@ onBeforeUnmount(() => {
             </a>
           </div>
 
-          <div v-else-if="block.type === 'video'" class="viewBlock viewVideo" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'video'" class="viewBlock viewVideo">
             <div v-if="getVideoEmbed(block.url)" class="videoWrap">
               <iframe
                 :src="getVideoEmbed(block.url)"
@@ -419,10 +473,13 @@ onBeforeUnmount(() => {
                 loading="lazy"
               ></iframe>
             </div>
+            <div v-else-if="isDirectVideoUrl(block.url)" class="videoWrap">
+              <video :src="block.url" controls preload="metadata"></video>
+            </div>
             <p v-if="block.title" class="viewVideoTitle">{{ block.title }}</p>
           </div>
 
-          <div v-else-if="block.type === 'table'" class="viewBlock viewTable" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'table'" class="viewBlock viewTable">
             <div class="tableWrap">
               <table class="viewTableEl">
                 <thead v-if="block.hasHeader && block.rows.length">
@@ -439,8 +496,14 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'file' && block.url" class="viewBlock viewFile" v-reveal="idx % 8">
-            <a :href="block.url" class="fileCardView" target="_blank" rel="noopener">
+          <div v-else-if="block.type === 'file' && block.url" class="viewBlock viewFile">
+            <a
+              :href="getDownloadUrl(block.url, block.label)"
+              class="fileCardView"
+              :download="block.label || true"
+              target="_blank"
+              rel="noopener"
+            >
               <div class="fileCardViewIcon">
                 <i :class="`mdi ${getFileIcon(getFileType(block.url))}`"></i>
               </div>
@@ -456,7 +519,7 @@ onBeforeUnmount(() => {
             </a>
           </div>
 
-          <div v-else-if="block.type === 'links'" class="viewBlock viewLinks" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'links'" class="viewBlock viewLinks">
             <div class="extLinksList">
               <a
                 v-for="(lk, li) in block.links.filter((l) => l.title || l.url)"
@@ -479,7 +542,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'gallery'" class="viewBlock viewGallery" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'gallery'" class="viewBlock viewGallery">
             <div class="galleryGrid">
               <figure v-for="(img, gi) in block.images.filter((g) => g.url)" :key="gi" class="galleryFig">
                 <img :src="img.url" :alt="img.caption || ''" loading="lazy" />
@@ -489,7 +552,7 @@ onBeforeUnmount(() => {
             <p v-if="block.caption" class="galleryCaption">{{ block.caption }}</p>
           </div>
 
-          <div v-else-if="block.type === 'terminal'" class="viewBlock viewTerminal" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'terminal'" class="viewBlock viewTerminal">
             <div class="terminalView">
               <div class="terminalViewBar">
                 <span class="termViewDot termViewDotRed"></span>
@@ -512,7 +575,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'steps'" class="viewBlock viewSteps" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'steps'" class="viewBlock viewSteps">
             <ol class="stepsList">
               <li v-for="(st, si) in block.steps.filter((s) => s.title)" :key="si" class="stepItem">
                 <span class="stepItemNum">{{ String(si + 1).padStart(2, '0') }}</span>
@@ -524,7 +587,7 @@ onBeforeUnmount(() => {
             </ol>
           </div>
 
-          <div v-else-if="block.type === 'checklist'" class="viewBlock viewChecklist" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'checklist'" class="viewBlock viewChecklist">
             <ul class="checklistList">
               <li v-for="(it, ci) in block.items.filter((x) => x.text)" :key="ci" class="checklistItem" :class="{ done: it.done }">
                 <i :class="it.done ? 'mdi mdi-checkbox-marked' : 'mdi mdi-checkbox-blank-outline'"></i>
@@ -533,7 +596,7 @@ onBeforeUnmount(() => {
             </ul>
           </div>
 
-          <div v-else-if="block.type === 'accordion'" class="viewBlock viewAccordion" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'accordion'" class="viewBlock viewAccordion">
             <div v-for="(it, ai) in block.items.filter((x) => x.title)" :key="ai" class="accordionItem">
               <details :open="ai === 0 || printExpandAll">
                 <summary>
@@ -545,7 +608,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'embed' && block.url" class="viewBlock viewEmbed" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'embed' && block.url" class="viewBlock viewEmbed">
             <div class="embedWrap">
               <iframe
                 :src="block.url"
@@ -558,11 +621,11 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-else-if="block.type === 'divider'" class="viewBlock viewDivider" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'divider'" class="viewBlock viewDivider">
             <hr />
           </div>
 
-          <div v-else-if="block.type === 'question'" class="viewBlock viewQuestion" v-reveal="idx % 8">
+          <div v-else-if="block.type === 'question'" class="viewBlock viewQuestion">
             <div class="questionCard">
               <div class="questionHeader">
                 <span class="questionNumber">Q{{ idx + 1 }}</span>
@@ -629,7 +692,7 @@ onBeforeUnmount(() => {
           v-for="(q, idx) in atividade.questoes"
           :key="idx"
           class="questaoCard"
-          v-reveal="idx % 8"
+         
         >
           <div class="questaoHeader">
             <span class="questaoNumber">Q{{ idx + 1 }}</span>
@@ -693,7 +756,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="notFoundActions">
-            <RouterLink :to="disciplinaName ? `/disciplina/${anoId || 1}/${disciplinaId}` : '/anos'" class="actionBtn actionBtnPrimary">
+            <RouterLink :to="disciplinaName ? `/disciplina/${anoId || 1}/${disciplinaId}` : '/'" class="actionBtn actionBtnPrimary">
               <i class="mdi mdi-arrow-left"></i>
               {{ disciplinaName ? `Voltar para ${disciplinaName}` : 'Ver disciplinas' }}
             </RouterLink>
@@ -773,6 +836,46 @@ onBeforeUnmount(() => {
   padding: var(--sp-8) var(--sp-6);
 }
 
+.ativCoverWrap {
+  position: relative;
+  margin-bottom: var(--sp-6);
+}
+
+.ativCover {
+  display: block;
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-1);
+}
+
+.ativCoverDownload {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.ativCoverWrap:hover .ativCoverDownload {
+  opacity: 1;
+}
+
+.ativCoverDownload:hover {
+  background: var(--color-navy-accent);
+}
+
 .ativHeader {
   margin-bottom: var(--sp-8);
   display: flex;
@@ -797,6 +900,22 @@ onBeforeUnmount(() => {
   color: var(--color-text-4);
   line-height: var(--leading-relaxed);
   margin-bottom: var(--sp-3);
+}
+
+.ativTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.ativTagChip {
+  padding: 3px var(--sp-3);
+  border-radius: var(--radius-full);
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .ativMeta {
@@ -1440,7 +1559,8 @@ h3.headingEl { font-size: var(--text-lg); font-weight: 700; }
   background: var(--color-navy);
 }
 
-.videoWrap iframe {
+.videoWrap iframe,
+.videoWrap video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2523,6 +2643,14 @@ h3.headingEl { font-size: var(--text-lg); font-weight: 700; }
 
   .actionBtn {
     justify-content: center;
+  }
+
+  .shareBtnLabel {
+    display: none;
+  }
+
+  .shareBtn {
+    padding: var(--sp-2);
   }
 }
 </style>

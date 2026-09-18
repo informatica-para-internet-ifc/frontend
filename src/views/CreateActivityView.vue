@@ -4,6 +4,7 @@ import { useRouter, onBeforeRouteLeave, RouterLink } from 'vue-router'
 import { anos, addAtividade, editAtividade, getAtividade } from '../data/disciplinas.js'
 import { renderMarkdown } from '../composables/useMarkdown.js'
 import { useToast } from '../composables/useToast.js'
+import { uploadImage, uploadDocument, uploadVideo } from '../api/uploader.js'
 
 const DRAFT_KEY = 'sio-draft-activity'
 
@@ -36,9 +37,17 @@ function loadEditMode() {
   return {
     title: a.title || '',
     description: a.desc || '',
+    capa: a.capa || '',
     selectedAno: ano,
     selectedDisc: props.disciplinaId,
     blocks: a.blocks ? JSON.parse(JSON.stringify(a.blocks)) : [],
+    dificuldade: a.dificuldade || '',
+    tempoEstimado: a.tempoEstimado || '',
+    tags: Array.isArray(a.tags) ? [...a.tags] : [],
+    preRequisitos: a.preRequisitos || '',
+    status: a.status || 'rascunho',
+    prazoRecomendado: a.prazoRecomendado || '',
+    fixada: !!a.fixada,
   }
 }
 
@@ -51,7 +60,55 @@ function nextId() {
 
 const title = ref(editData.title || '')
 const description = ref(editData.description || '')
+const capa = ref(editData.capa || '')
 const blocks = ref(editData.blocks || [])
+const dificuldade = ref(editData.dificuldade || '')
+const tempoEstimado = ref(editData.tempoEstimado || '')
+const tags = ref(editData.tags || [])
+const tagInput = ref('')
+const preRequisitos = ref(editData.preRequisitos || '')
+const status = ref(editData.status || 'rascunho')
+const prazoRecomendado = ref(editData.prazoRecomendado || '')
+const fixada = ref(editData.fixada || false)
+
+const dificuldadeOptions = [
+  { value: 'facil', label: 'Fácil', icon: 'mdi-emoticon-happy-outline' },
+  { value: 'medio', label: 'Médio', icon: 'mdi-emoticon-neutral-outline' },
+  { value: 'dificil', label: 'Difícil', icon: 'mdi-emoticon-devil-outline' },
+]
+
+const statusOptions = [
+  { value: 'rascunho', label: 'Rascunho', icon: 'mdi-file-edit-outline' },
+  { value: 'publicada', label: 'Publicada', icon: 'mdi-check-circle-outline' },
+  { value: 'arquivada', label: 'Arquivada', icon: 'mdi-archive-outline' },
+]
+
+function addTag() {
+  const value = tagInput.value.trim().replace(/,$/, '')
+  if (value && !tags.value.includes(value)) {
+    tags.value.push(value)
+  }
+  tagInput.value = ''
+}
+
+function removeTag(idx) {
+  tags.value.splice(idx, 1)
+}
+
+function onTagKeydown(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault()
+    addTag()
+  }
+}
+
+function toggleDificuldade(value) {
+  dificuldade.value = dificuldade.value === value ? '' : value
+}
+
+watch(status, (value) => {
+  if (value !== 'publicada') fixada.value = false
+})
 const showAddMenu = ref(false)
 const addMenuIdx = ref(null)
 const addMenuQuery = ref('')
@@ -84,6 +141,84 @@ function resetBlockDrag() {
   draggingIdx.value = null
   dragOverIdx.value = null
 }
+
+const collapsedBlocks = ref(new Set())
+
+function isCollapsed(id) {
+  return collapsedBlocks.value.has(id)
+}
+
+function toggleCollapse(id) {
+  const next = new Set(collapsedBlocks.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  collapsedBlocks.value = next
+}
+
+function collapseAll() {
+  collapsedBlocks.value = new Set(blocks.value.map((b) => b.id))
+}
+
+function expandAll() {
+  collapsedBlocks.value = new Set()
+}
+
+function getBlockSummary(block) {
+  const truncate = (s, n = 60) => {
+    const clean = String(s || '').trim().replace(/\s+/g, ' ')
+    return clean.length > n ? `${clean.slice(0, n)}…` : clean
+  }
+  switch (block.type) {
+    case 'text':
+    case 'markdown':
+    case 'quote':
+      return truncate(block.content) || 'Vazio'
+    case 'heading':
+      return truncate(block.content) || 'Vazio'
+    case 'code':
+    case 'terminal':
+      return block.language || 'Sem código'
+    case 'image':
+      return block.alt || truncate(block.url) || 'Sem imagem'
+    case 'gallery':
+      return `${block.images?.filter((i) => i.url).length || 0} imagem(ns)`
+    case 'video':
+      return block.title || truncate(block.url) || 'Sem vídeo'
+    case 'file':
+      return block.label || truncate(block.url) || 'Sem arquivo'
+    case 'link':
+      return block.label || truncate(block.url) || 'Sem link'
+    case 'links':
+      return `${block.links?.filter((l) => l.title || l.url).length || 0} link(s)`
+    case 'embed':
+      return truncate(block.url) || 'Sem embed'
+    case 'list':
+      return `${block.items?.filter((i) => i).length || 0} item(ns)`
+    case 'steps':
+      return `${block.steps?.filter((s) => s.title).length || 0} passo(s)`
+    case 'checklist':
+      return `${block.items?.filter((i) => i.text).length || 0} item(ns)`
+    case 'table':
+      return `${block.rows?.length || 0} linha(s)`
+    case 'accordion':
+      return `${block.items?.filter((i) => i.title).length || 0} item(ns)`
+    case 'alert':
+      return truncate(block.content) || 'Vazio'
+    case 'question':
+      return truncate(block.enunciado) || 'Sem enunciado'
+    case 'divider':
+      return ''
+    default:
+      return ''
+  }
+}
+
+function scrollToBlock(id) {
+  if (viewMode.value !== 'edit') viewMode.value = 'edit'
+  requestAnimationFrame(() => {
+    document.getElementById(`block-anchor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
 const selectedAno = ref(editData.selectedAno || '')
 const selectedDisc = ref(editData.selectedDisc || '')
 const isSaving = ref(false)
@@ -106,7 +241,19 @@ const disciplinasDoAno = computed(() => {
 })
 
 const hasChanges = computed(() => {
-  return title.value || description.value || blocks.value.length > 0 || selectedAno.value || selectedDisc.value
+  return (
+    title.value ||
+    description.value ||
+    capa.value ||
+    blocks.value.length > 0 ||
+    selectedAno.value ||
+    selectedDisc.value ||
+    dificuldade.value ||
+    tempoEstimado.value ||
+    tags.value.length > 0 ||
+    preRequisitos.value ||
+    prazoRecomendado.value
+  )
 })
 
 let justSaved = false
@@ -136,9 +283,17 @@ function saveDraft() {
       JSON.stringify({
         title: title.value,
         description: description.value,
+        capa: capa.value,
         blocks: blocks.value,
         selectedAno: selectedAno.value,
         selectedDisc: selectedDisc.value,
+        dificuldade: dificuldade.value,
+        tempoEstimado: tempoEstimado.value,
+        tags: tags.value,
+        preRequisitos: preRequisitos.value,
+        status: status.value,
+        prazoRecomendado: prazoRecomendado.value,
+        fixada: fixada.value,
         savedAt: Date.now(),
       }),
     )
@@ -158,9 +313,17 @@ function restoreDraft() {
   if (!draft) return
   title.value = draft.title || ''
   description.value = draft.description || ''
+  capa.value = draft.capa || ''
   blocks.value = draft.blocks || []
   selectedAno.value = draft.selectedAno || ''
   selectedDisc.value = draft.selectedDisc || ''
+  dificuldade.value = draft.dificuldade || ''
+  tempoEstimado.value = draft.tempoEstimado || ''
+  tags.value = draft.tags || []
+  preRequisitos.value = draft.preRequisitos || ''
+  status.value = draft.status || 'rascunho'
+  prazoRecomendado.value = draft.prazoRecomendado || ''
+  fixada.value = draft.fixada || false
   blockIdCounter = Math.max(blockIdCounter, ...(draft.blocks || []).map((b) => b.id || 0), 0)
   showDraftBanner.value = false
   toast.info('Rascunho restaurado.')
@@ -175,7 +338,11 @@ if (!isEditMode.value && readDraft()) {
   showDraftBanner.value = true
 }
 
-watch([title, description, blocks, selectedAno, selectedDisc], scheduleDraftSave, { deep: true })
+watch(
+  [title, description, capa, blocks, selectedAno, selectedDisc, dificuldade, tempoEstimado, tags, preRequisitos, status, prazoRecomendado, fixada],
+  scheduleDraftSave,
+  { deep: true },
+)
 
 onBeforeUnmount(() => clearTimeout(draftTimer))
 
@@ -187,6 +354,16 @@ function onBeforeUnloadGuard(e) {
 
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnloadGuard))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnloadGuard))
+
+function onSaveShortcut(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    if (!isSaving.value) save()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onSaveShortcut))
+onBeforeUnmount(() => window.removeEventListener('keydown', onSaveShortcut))
 
 onBeforeRouteLeave(() => {
   if (justSaved || !hasChanges.value) return true
@@ -203,28 +380,36 @@ const textLength = computed(() => {
   }, 0)
 })
 
+const blockCategories = [
+  { id: 'texto', label: 'Texto', icon: 'mdi-format-text' },
+  { id: 'codigo', label: 'Código', icon: 'mdi-code-braces' },
+  { id: 'midia', label: 'Mídia', icon: 'mdi-multimedia' },
+  { id: 'estrutura', label: 'Estrutura', icon: 'mdi-view-grid-outline' },
+  { id: 'interativo', label: 'Interativo', icon: 'mdi-cursor-default-click-outline' },
+]
+
 const blockTypes = [
-  { type: 'text', label: 'Texto', icon: 'mdi-text', desc: 'Parágrafos simples de texto' },
-  { type: 'heading', label: 'Título', icon: 'mdi-format-header-1', desc: 'Título de seção' },
-  { type: 'markdown', label: 'Markdown', icon: 'mdi-language-markdown', desc: 'Texto com formatação rich' },
-  { type: 'code', label: 'Código', icon: 'mdi-code-tags', desc: 'Bloco de código com syntax highlight' },
-  { type: 'terminal', label: 'Terminal', icon: 'mdi-console-line', desc: 'Comandos de terminal' },
-  { type: 'image', label: 'Imagem', icon: 'mdi-image-outline', desc: 'Imagem por URL' },
-  { type: 'gallery', label: 'Galeria', icon: 'mdi-image-multiple-outline', desc: 'Várias imagens com legenda' },
-  { type: 'video', label: 'Vídeo', icon: 'mdi-video-outline', desc: 'Vídeo incorporado (YouTube/Vimeo)' },
-  { type: 'embed', label: 'Embed', icon: 'mdi-web', desc: 'Iframe incorporado (CodePen, JSFiddle...)' },
-  { type: 'list', label: 'Lista', icon: 'mdi-format-list-bulleted', desc: 'Lista com marcadores ou numerada' },
-  { type: 'steps', label: 'Passo a Passo', icon: 'mdi-format-list-numbered', desc: 'Procedimento numerado: 01 → 02 → 03' },
-  { type: 'checklist', label: 'Checklista', icon: 'mdi-format-list-checks', desc: 'Lista de requisitos com checkbox' },
-  { type: 'table', label: 'Tabela', icon: 'mdi-table', desc: 'Tabela editável com linhas e colunas' },
-  { type: 'quote', label: 'Citação', icon: 'mdi-format-quote-open', desc: 'Citação em destaque com autor' },
-  { type: 'alert', label: 'Aviso', icon: 'mdi-alert-decagram-outline', desc: 'Caixa colorida (informação, dica, atenção...)' },
-  { type: 'link', label: 'Link', icon: 'mdi-link-variant', desc: 'Link único com rótulo e descrição' },
-  { type: 'links', label: 'Links Externos', icon: 'mdi-link-box-outline', desc: 'Várias referências externas' },
-  { type: 'file', label: 'Download', icon: 'mdi-file-download-outline', desc: 'Arquivo para baixar (PDF, ZIP...)' },
-  { type: 'accordion', label: 'Acordeão', icon: 'mdi-view-list', desc: 'Itens colapsáveis (perguntas e respostas)' },
-  { type: 'divider', label: 'Divisor', icon: 'mdi-minus', desc: 'Linha separadora' },
-  { type: 'question', label: 'Questão', icon: 'mdi-frequently-asked-questions', desc: 'Exercício (discursiva, múltipla escolha...)' },
+  { type: 'text', label: 'Texto', icon: 'mdi-text', desc: 'Parágrafos simples de texto', category: 'texto' },
+  { type: 'heading', label: 'Título', icon: 'mdi-format-header-1', desc: 'Título de seção', category: 'texto' },
+  { type: 'markdown', label: 'Markdown', icon: 'mdi-language-markdown', desc: 'Texto com formatação rich', category: 'texto' },
+  { type: 'quote', label: 'Citação', icon: 'mdi-format-quote-open', desc: 'Citação em destaque com autor', category: 'texto' },
+  { type: 'code', label: 'Código', icon: 'mdi-code-tags', desc: 'Bloco de código com syntax highlight', category: 'codigo' },
+  { type: 'terminal', label: 'Terminal', icon: 'mdi-console-line', desc: 'Comandos de terminal', category: 'codigo' },
+  { type: 'image', label: 'Imagem', icon: 'mdi-image-outline', desc: 'Envie uma imagem ou cole uma URL', category: 'midia' },
+  { type: 'gallery', label: 'Galeria', icon: 'mdi-image-multiple-outline', desc: 'Várias imagens com legenda', category: 'midia' },
+  { type: 'video', label: 'Vídeo', icon: 'mdi-video-outline', desc: 'Envie um arquivo ou incorpore YouTube/Vimeo', category: 'midia' },
+  { type: 'file', label: 'Download', icon: 'mdi-file-download-outline', desc: 'Arquivo para baixar (PDF, ZIP...)', category: 'midia' },
+  { type: 'embed', label: 'Embed', icon: 'mdi-web', desc: 'Iframe incorporado (CodePen, JSFiddle...)', category: 'midia' },
+  { type: 'list', label: 'Lista', icon: 'mdi-format-list-bulleted', desc: 'Lista com marcadores ou numerada', category: 'estrutura' },
+  { type: 'steps', label: 'Passo a Passo', icon: 'mdi-format-list-numbered', desc: 'Procedimento numerado: 01 → 02 → 03', category: 'estrutura' },
+  { type: 'checklist', label: 'Checklista', icon: 'mdi-format-list-checks', desc: 'Lista de requisitos com checkbox', category: 'estrutura' },
+  { type: 'table', label: 'Tabela', icon: 'mdi-table', desc: 'Tabela editável com linhas e colunas', category: 'estrutura' },
+  { type: 'accordion', label: 'Acordeão', icon: 'mdi-view-list', desc: 'Itens colapsáveis (perguntas e respostas)', category: 'estrutura' },
+  { type: 'divider', label: 'Divisor', icon: 'mdi-minus', desc: 'Linha separadora', category: 'estrutura' },
+  { type: 'alert', label: 'Aviso', icon: 'mdi-alert-decagram-outline', desc: 'Caixa colorida (informação, dica, atenção...)', category: 'interativo' },
+  { type: 'link', label: 'Link', icon: 'mdi-link-variant', desc: 'Link único com rótulo e descrição', category: 'interativo' },
+  { type: 'links', label: 'Links Externos', icon: 'mdi-link-box-outline', desc: 'Várias referências externas', category: 'interativo' },
+  { type: 'question', label: 'Questão', icon: 'mdi-frequently-asked-questions', desc: 'Exercício (discursiva, múltipla escolha...)', category: 'interativo' },
 ]
 
 const alertTypes = [
@@ -425,6 +610,111 @@ function getVideoEmbed(url) {
   return null
 }
 
+function isDirectVideoUrl(url) {
+  if (!url) return false
+  return /\.(mp4|webm|mov|ogg|mkv)(?:$|\?)/i.test(url)
+}
+
+const uploading = ref({})
+
+function isUploading(key) {
+  return !!uploading.value[key]
+}
+
+async function runUpload(key, uploadFn, file, onSuccess) {
+  if (!file) return
+  uploading.value = { ...uploading.value, [key]: true }
+  try {
+    const result = await uploadFn(file)
+    onSuccess(result)
+  } catch (err) {
+    toast.error(err.message || 'Falha ao enviar o arquivo.')
+  } finally {
+    uploading.value = { ...uploading.value, [key]: false }
+  }
+}
+
+async function downloadFile(url, filename) {
+  try {
+    const resp = await fetch(url)
+    if (!resp.ok) throw new Error('network')
+    const blob = await resp.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = filename || 'arquivo'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    toast.error('Não foi possível baixar o arquivo.')
+    window.open(url, '_blank', 'noopener')
+  }
+}
+
+function downloadCover() {
+  downloadFile(capa.value, `capa-${title.value || 'atividade'}`)
+}
+
+function onCoverFileSelected(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  runUpload('capa', uploadImage, file, (result) => {
+    capa.value = result.url
+  })
+}
+
+function removeCover() {
+  capa.value = ''
+}
+
+function onImageFileSelected(block, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  runUpload(`block-${block.id}`, uploadImage, file, (result) => {
+    block.url = result.url
+  })
+}
+
+function onGalleryFileSelected(block, img, idx, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  runUpload(`block-${block.id}-${idx}`, uploadImage, file, (result) => {
+    img.url = result.url
+  })
+}
+
+function onDocumentFileSelected(block, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  runUpload(`block-${block.id}`, uploadDocument, file, (result) => {
+    block.url = result.url
+    if (!block.label) block.label = file.name.replace(/\.[^.]+$/, '')
+    if (file.size) block.size = formatFileSize(file.size)
+  })
+}
+
+function onVideoFileSelected(block, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  runUpload(`block-${block.id}`, uploadVideo, file, (result) => {
+    block.url = result.url
+  })
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return ''
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unitIdx = 0
+  while (value >= 1024 && unitIdx < units.length - 1) {
+    value /= 1024
+    unitIdx++
+  }
+  return `${value.toFixed(unitIdx === 0 ? 0 : 1)} ${units[unitIdx]}`
+}
+
 function openAddMenu(idx) {
   addMenuIdx.value = idx
   addMenuQuery.value = ''
@@ -449,6 +739,13 @@ const filteredBlockTypes = computed(() => {
   return blockTypes.filter(
     (bt) => normalizeText(bt.label).includes(q) || normalizeText(bt.desc).includes(q),
   )
+})
+
+const groupedBlockTypes = computed(() => {
+  const list = filteredBlockTypes.value
+  return blockCategories
+    .map((cat) => ({ ...cat, items: list.filter((bt) => bt.category === cat.id) }))
+    .filter((cat) => cat.items.length > 0)
 })
 
 function isBlockEmpty(block) {
@@ -503,9 +800,18 @@ function validate() {
 function resetFormState() {
   title.value = ''
   description.value = ''
+  capa.value = ''
   blocks.value = []
   selectedAno.value = ''
   selectedDisc.value = ''
+  dificuldade.value = ''
+  tempoEstimado.value = ''
+  tags.value = []
+  tagInput.value = ''
+  preRequisitos.value = ''
+  status.value = 'rascunho'
+  prazoRecomendado.value = ''
+  fixada.value = false
   errors.value = {}
   showErrors.value = false
   viewMode.value = 'edit'
@@ -530,9 +836,17 @@ async function save() {
   const payload = {
     title: title.value.trim(),
     desc: description.value.trim(),
+    capa: capa.value,
     ano: selectedAno.value,
     blocks: JSON.parse(JSON.stringify(blocks.value)),
     questoes,
+    dificuldade: dificuldade.value || '',
+    tempo_estimado: tempoEstimado.value.trim(),
+    tags: tags.value,
+    pre_requisitos: preRequisitos.value.trim(),
+    status: status.value,
+    prazo_recomendado: prazoRecomendado.value || null,
+    fixada: fixada.value,
   }
 
   try {
@@ -611,12 +925,7 @@ function getQuestionModoLabel(modo) {
 
 <template>
   <div class="createView">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <div class="createContent">
+<div class="createContent">
       <div class="createHeader animate-fade-in-up">
         <button class="backBtn" @click="router.back()">
           <i class="mdi mdi-arrow-left"></i>
@@ -630,6 +939,10 @@ function getQuestionModoLabel(modo) {
             <i class="mdi mdi-cube-outline"></i>
             {{ blockCount }} bloco{{ blockCount !== 1 ? 's' : '' }}
           </span>
+          <button v-if="blockCount > 1" class="collapseAllBtn" title="Recolher todos os blocos" @click="collapsedBlocks.size ? expandAll() : collapseAll()">
+            <i class="mdi" :class="collapsedBlocks.size ? 'mdi-arrow-expand-vertical' : 'mdi-arrow-collapse-vertical'"></i>
+            {{ collapsedBlocks.size ? 'Expandir tudo' : 'Recolher tudo' }}
+          </button>
           <div class="viewModeToggle">
             <button
               class="viewModeBtn"
@@ -650,7 +963,7 @@ function getQuestionModoLabel(modo) {
               <span>Visualizar</span>
             </button>
           </div>
-          <button class="saveBtn" @click="save" :disabled="isSaving">
+          <button class="saveBtn" @click="save" :disabled="isSaving" title="Salvar (Ctrl+S)">
             <i :class="isSaving ? 'mdi mdi-loading mdi-spin' : 'mdi mdi-content-save-outline'"></i>
             {{ isSaving ? 'Salvando...' : (isEditMode ? 'Salvar Alterações' : 'Salvar') }}
           </button>
@@ -718,6 +1031,20 @@ function getQuestionModoLabel(modo) {
 
       <template v-if="!savedAtividade">
       <div class="formCard animate-fade-in-up delay-1">
+        <div class="coverBanner" :class="{ hasCover: capa, uploading: isUploading('capa') }">
+          <img v-if="capa" :src="capa" alt="Capa da atividade" class="coverImg" />
+          <label class="coverUploadBtn">
+            <input type="file" accept="image/*" hidden @change="onCoverFileSelected" :disabled="isUploading('capa')" />
+            <i :class="`mdi ${isUploading('capa') ? 'mdi-loading mdi-spin' : (capa ? 'mdi-image-edit-outline' : 'mdi-image-plus-outline')}`"></i>
+            {{ isUploading('capa') ? 'Enviando...' : (capa ? 'Trocar capa' : 'Adicionar capa') }}
+          </label>
+          <button v-if="capa" type="button" class="coverDownloadBtn" title="Baixar capa" @click="downloadCover">
+            <i class="mdi mdi-download"></i>
+          </button>
+          <button v-if="capa" type="button" class="coverRemoveBtn" title="Remover capa" @click="removeCover">
+            <i class="mdi mdi-close"></i>
+          </button>
+        </div>
         <div class="formBody">
           <div class="fieldGroup">
             <input
@@ -735,60 +1062,17 @@ function getQuestionModoLabel(modo) {
             </Transition>
           </div>
 
-          <input
+          <textarea
             v-model="description"
-            type="text"
             class="descInput"
-            placeholder="Descrição (opcional)"
-          />
-
-          <div class="formMeta">
-            <div class="metaField">
-              <label class="metaLabel">
-                <i class="mdi mdi-calendar-outline"></i>
-                Ano
-              </label>
-              <select
-                v-model="selectedAno"
-                class="metaSelect"
-                :class="{ 'hasError': showErrors && errors.ano }"
-              >
-                <option value="">Selecione...</option>
-                <option v-for="ano in anosList" :key="ano.id" :value="ano.id">{{ ano.label }}</option>
-              </select>
-              <Transition name="field-error">
-                <span v-if="showErrors && errors.ano" class="fieldError">
-                  <i class="mdi mdi-alert-circle-outline"></i>
-                  {{ errors.ano }}
-                </span>
-              </Transition>
-            </div>
-            <div class="metaField">
-              <label class="metaLabel">
-                <i class="mdi mdi-book-outline"></i>
-                Disciplina
-              </label>
-              <select
-                v-model="selectedDisc"
-                class="metaSelect"
-                :class="{ 'hasError': showErrors && errors.disc }"
-                :disabled="!selectedAno"
-              >
-                <option value="">Selecione...</option>
-                <option v-for="disc in disciplinasDoAno" :key="disc.id" :value="disc.id">{{ disc.name }}</option>
-              </select>
-              <Transition name="field-error">
-                <span v-if="showErrors && errors.disc" class="fieldError">
-                  <i class="mdi mdi-alert-circle-outline"></i>
-                  {{ errors.disc }}
-                </span>
-              </Transition>
-            </div>
-          </div>
+            placeholder="Descrição (opcional) — um resumo curto do que o aluno vai encontrar aqui"
+            rows="2"
+          ></textarea>
         </div>
       </div>
 
       <div class="builderLayout">
+      <div class="mainColumn">
       <div v-if="viewMode !== 'preview'" class="blocksSection editorPane animate-fade-in-up delay-2">
         <div v-if="showErrors && errors.blocks" class="blocksError animate-fade-in-up">
           <i class="mdi mdi-alert-circle-outline"></i>
@@ -812,6 +1096,7 @@ function getQuestionModoLabel(modo) {
             <div
               v-for="(block, idx) in blocks"
               :key="block.id"
+              :id="`block-anchor-${block.id}`"
               class="blockWrapper"
               :class="{ isDragging: draggingIdx === idx, isDragOver: dragOverIdx === idx && draggingIdx !== idx }"
               @dragover.prevent="onBlockDragOver(idx)"
@@ -842,18 +1127,23 @@ function getQuestionModoLabel(modo) {
                 </button>
               </div>
 
-              <div class="blockCard" :class="`block-${block.type}`">
+              <div class="blockCard" :class="[`block-${block.type}`, { isCollapsed: isCollapsed(block.id) }]">
                 <div class="blockCardHeader">
+                  <button class="collapseToggle" title="Recolher/expandir" @click="toggleCollapse(block.id)">
+                    <i class="mdi" :class="isCollapsed(block.id) ? 'mdi-chevron-right' : 'mdi-chevron-down'"></i>
+                  </button>
                   <div class="blockTypeBadge">
                     <i :class="`mdi ${getBlockIcon(block.type)}`"></i>
                     {{ getBlockLabel(block.type) }}
                   </div>
+                  <span v-if="isCollapsed(block.id)" class="blockSummary">{{ getBlockSummary(block) }}</span>
                   <span class="blockNumber">
                     #{{ idx + 1 }}
                   </span>
                 </div>
 
-                <template v-if="block.type === 'text'">
+                <template v-if="isCollapsed(block.id)"></template>
+                <template v-else-if="block.type === 'text'">
                   <textarea
                     v-model="block.content"
                     class="blockTextarea"
@@ -920,10 +1210,15 @@ function getQuestionModoLabel(modo) {
                 </template>
 
                 <template v-else-if="block.type === 'image'">
+                  <label class="uploadDropzone" :class="{ uploading: isUploading(`block-${block.id}`) }">
+                    <input type="file" accept="image/*" hidden @change="onImageFileSelected(block, $event)" :disabled="isUploading(`block-${block.id}`)" />
+                    <i :class="`mdi ${isUploading(`block-${block.id}`) ? 'mdi-loading mdi-spin' : 'mdi-cloud-upload-outline'}`"></i>
+                    <span>{{ isUploading(`block-${block.id}`) ? 'Enviando...' : (block.url ? 'Trocar imagem' : 'Clique para enviar uma imagem') }}</span>
+                  </label>
                   <input
                     v-model="block.url"
-                    class="blockInput"
-                    placeholder="URL da imagem (https://...)"
+                    class="blockInput blockInputSecondary"
+                    placeholder="ou cole a URL da imagem (https://...)"
                   />
                   <input
                     v-model="block.alt"
@@ -1040,10 +1335,15 @@ function getQuestionModoLabel(modo) {
                 </template>
 
                 <template v-else-if="block.type === 'video'">
+                  <label class="uploadDropzone" :class="{ uploading: isUploading(`block-${block.id}`) }">
+                    <input type="file" accept="video/*" hidden @change="onVideoFileSelected(block, $event)" :disabled="isUploading(`block-${block.id}`)" />
+                    <i :class="`mdi ${isUploading(`block-${block.id}`) ? 'mdi-loading mdi-spin' : 'mdi-cloud-upload-outline'}`"></i>
+                    <span>{{ isUploading(`block-${block.id}`) ? 'Enviando...' : (block.url ? 'Trocar vídeo' : 'Clique para enviar um vídeo') }}</span>
+                  </label>
                   <input
                     v-model="block.url"
-                    class="blockInput"
-                    placeholder="URL do vídeo (YouTube ou Vimeo)"
+                    class="blockInput blockInputSecondary"
+                    placeholder="ou cole o link do YouTube/Vimeo"
                   />
                   <input
                     v-model="block.title"
@@ -1061,9 +1361,12 @@ function getQuestionModoLabel(modo) {
                         loading="lazy"
                       ></iframe>
                     </div>
+                    <div v-else-if="isDirectVideoUrl(block.url)" class="videoPreview">
+                      <video :src="block.url" controls preload="metadata"></video>
+                    </div>
                     <p v-else class="videoInvalid">
                       <i class="mdi mdi-alert-circle-outline"></i>
-                      URL de vídeo não reconhecida. Use links do YouTube ou Vimeo.
+                      URL de vídeo não reconhecida. Use links do YouTube, Vimeo ou envie um arquivo.
                     </p>
                   </div>
                 </template>
@@ -1113,6 +1416,11 @@ function getQuestionModoLabel(modo) {
                 </template>
 
                 <template v-else-if="block.type === 'file'">
+                  <label class="uploadDropzone" :class="{ uploading: isUploading(`block-${block.id}`) }">
+                    <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt" hidden @change="onDocumentFileSelected(block, $event)" :disabled="isUploading(`block-${block.id}`)" />
+                    <i :class="`mdi ${isUploading(`block-${block.id}`) ? 'mdi-loading mdi-spin' : 'mdi-cloud-upload-outline'}`"></i>
+                    <span>{{ isUploading(`block-${block.id}`) ? 'Enviando...' : (block.url ? 'Trocar arquivo' : 'Clique para enviar um arquivo (PDF, DOCX, ZIP...)') }}</span>
+                  </label>
                   <input
                     v-model="block.label"
                     class="blockInput"
@@ -1120,8 +1428,8 @@ function getQuestionModoLabel(modo) {
                   />
                   <input
                     v-model="block.url"
-                    class="blockInput"
-                    placeholder="URL do arquivo (https://...)"
+                    class="blockInput blockInputSecondary"
+                    placeholder="ou cole a URL do arquivo (https://...)"
                   />
                   <div class="blockInputRow">
                     <input
@@ -1140,7 +1448,7 @@ function getQuestionModoLabel(modo) {
                     placeholder="Descrição (opcional)"
                   />
                   <div v-if="block.url" class="blockPreview">
-                    <div class="fileCardPreview">
+                    <a :href="block.url" target="_blank" rel="noopener" class="fileCardPreview" title="Abrir/baixar arquivo">
                       <div class="fileCardIcon">
                         <i :class="`mdi ${getFileIcon(getFileType(block.url))}`"></i>
                       </div>
@@ -1153,7 +1461,7 @@ function getQuestionModoLabel(modo) {
                         <span v-if="block.desc" class="fileCardDesc">{{ block.desc }}</span>
                       </div>
                       <i class="mdi mdi-download fileCardDownload"></i>
-                    </div>
+                    </a>
                   </div>
                 </template>
 
@@ -1200,11 +1508,18 @@ function getQuestionModoLabel(modo) {
                         <i class="mdi mdi-close"></i>
                       </button>
                     </div>
-                    <input
-                      v-model="img.url"
-                      class="blockInput"
-                      :placeholder="`URL da imagem ${i + 1} (https://...)`"
-                    />
+                    <div class="blockInputRow">
+                      <input
+                        v-model="img.url"
+                        class="blockInput"
+                        :placeholder="`URL da imagem ${i + 1} (https://...)`"
+                      />
+                      <label class="uploadBtn" :class="{ uploading: isUploading(`block-${block.id}-${i}`) }">
+                        <input type="file" accept="image/*" hidden @change="onGalleryFileSelected(block, img, i, $event)" :disabled="isUploading(`block-${block.id}-${i}`)" />
+                        <i :class="`mdi ${isUploading(`block-${block.id}-${i}`) ? 'mdi-loading mdi-spin' : 'mdi-upload'}`"></i>
+                        Enviar
+                      </label>
+                    </div>
                     <input
                       v-model="img.caption"
                       class="blockInput blockInputSecondary"
@@ -1537,21 +1852,29 @@ function getQuestionModoLabel(modo) {
                 <i class="mdi mdi-text-search"></i>
                 Nenhum tipo de bloco encontrado
               </div>
-              <div v-else class="addMenuGrid">
-                <button
-                  v-for="bt in filteredBlockTypes"
-                  :key="bt.type"
-                  class="addMenuItem"
-                  @click="addBlock(bt.type, addMenuIdx)"
-                >
-                  <div class="addMenuIcon">
-                    <i :class="`mdi ${bt.icon}`"></i>
+              <div v-else class="addMenuBody">
+                <div v-for="cat in groupedBlockTypes" :key="cat.id" class="addMenuCategory">
+                  <div class="addMenuCategoryTitle">
+                    <i :class="`mdi ${cat.icon}`"></i>
+                    {{ cat.label }}
                   </div>
-                  <div class="addMenuText">
-                    <span class="addMenuLabel">{{ bt.label }}</span>
-                    <span class="addMenuDesc">{{ bt.desc }}</span>
+                  <div class="addMenuGrid">
+                    <button
+                      v-for="bt in cat.items"
+                      :key="bt.type"
+                      class="addMenuItem"
+                      @click="addBlock(bt.type, addMenuIdx)"
+                    >
+                      <div class="addMenuIcon">
+                        <i :class="`mdi ${bt.icon}`"></i>
+                      </div>
+                      <div class="addMenuText">
+                        <span class="addMenuLabel">{{ bt.label }}</span>
+                        <span class="addMenuDesc">{{ bt.desc }}</span>
+                      </div>
+                    </button>
                   </div>
-                </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1568,16 +1891,28 @@ function getQuestionModoLabel(modo) {
         </div>
 
         <div v-else class="previewCard">
+          <img v-if="capa" :src="capa" alt="" class="previewCover" />
           <div class="previewBody">
             <h1 v-if="title" class="previewTitle">{{ title }}</h1>
             <p v-if="description" class="previewDesc">{{ description }}</p>
-            <div v-if="selectedAno || selectedDisc" class="previewMeta">
+            <div v-if="selectedAno || selectedDisc || dificuldade || tempoEstimado" class="previewMeta">
               <span v-if="selectedAno" class="previewTag">
                 {{ anos[selectedAno]?.label }}
               </span>
               <span v-if="selectedDisc" class="previewTag previewTagDisc">
                 {{ disciplinasDoAno.find(d => d.id === selectedDisc)?.name }}
               </span>
+              <span v-if="dificuldade" class="previewTag">
+                <i :class="`mdi ${dificuldadeOptions.find(o => o.value === dificuldade)?.icon}`"></i>
+                {{ dificuldadeOptions.find(o => o.value === dificuldade)?.label }}
+              </span>
+              <span v-if="tempoEstimado" class="previewTag">
+                <i class="mdi mdi-clock-outline"></i>
+                {{ tempoEstimado }}
+              </span>
+            </div>
+            <div v-if="tags.length" class="tagList">
+              <span v-for="tag in tags" :key="tag" class="tagChip">{{ tag }}</span>
             </div>
 
             <div class="previewBlocks">
@@ -1652,6 +1987,9 @@ function getQuestionModoLabel(modo) {
                       loading="lazy"
                     ></iframe>
                   </div>
+                  <div v-else-if="isDirectVideoUrl(block.url)" class="previewVideoWrap">
+                    <video :src="block.url" controls preload="metadata"></video>
+                  </div>
                   <p v-if="block.title" class="previewVideoTitle">{{ block.title }}</p>
                 </div>
 
@@ -1673,7 +2011,7 @@ function getQuestionModoLabel(modo) {
                 </div>
 
                 <div v-else-if="block.type === 'file' && block.url" class="previewBlock">
-                  <div class="fileCardPreview">
+                  <a :href="block.url" target="_blank" rel="noopener" class="fileCardPreview" title="Abrir/baixar arquivo">
                     <div class="fileCardIcon">
                       <i :class="`mdi ${getFileIcon(getFileType(block.url))}`"></i>
                     </div>
@@ -1686,7 +2024,7 @@ function getQuestionModoLabel(modo) {
                       <span v-if="block.desc" class="fileCardDesc">{{ block.desc }}</span>
                     </div>
                     <i class="mdi mdi-download fileCardDownload"></i>
-                  </div>
+                  </a>
                 </div>
 
                 <div v-else-if="block.type === 'links'" class="previewBlock">
@@ -1821,6 +2159,164 @@ function getQuestionModoLabel(modo) {
         </div>
       </div>
       </div>
+      <!-- /mainColumn -->
+
+      <aside class="sidebarPanel animate-fade-in-up delay-2">
+        <div class="sidebarCard">
+          <h3 class="sidebarCardTitle">
+            <i class="mdi mdi-book-education-outline"></i>
+            Organização
+          </h3>
+          <div class="metaField">
+            <label class="metaLabel">Ano</label>
+            <select
+              v-model="selectedAno"
+              class="metaSelect"
+              :class="{ 'hasError': showErrors && errors.ano }"
+            >
+              <option value="">Selecione...</option>
+              <option v-for="ano in anosList" :key="ano.id" :value="ano.id">{{ ano.label }}</option>
+            </select>
+            <Transition name="field-error">
+              <span v-if="showErrors && errors.ano" class="fieldError">
+                <i class="mdi mdi-alert-circle-outline"></i>
+                {{ errors.ano }}
+              </span>
+            </Transition>
+          </div>
+          <div class="metaField">
+            <label class="metaLabel">Disciplina</label>
+            <select
+              v-model="selectedDisc"
+              class="metaSelect"
+              :class="{ 'hasError': showErrors && errors.disc }"
+              :disabled="!selectedAno"
+            >
+              <option value="">Selecione...</option>
+              <option v-for="disc in disciplinasDoAno" :key="disc.id" :value="disc.id">{{ disc.name }}</option>
+            </select>
+            <Transition name="field-error">
+              <span v-if="showErrors && errors.disc" class="fieldError">
+                <i class="mdi mdi-alert-circle-outline"></i>
+                {{ errors.disc }}
+              </span>
+            </Transition>
+          </div>
+        </div>
+
+        <div class="sidebarCard">
+          <h3 class="sidebarCardTitle">
+            <i class="mdi mdi-tune-variant"></i>
+            Detalhes
+          </h3>
+          <div class="metaField">
+            <label class="metaLabel">Dificuldade</label>
+            <div class="segmentedGroup">
+              <button
+                v-for="opt in dificuldadeOptions"
+                :key="opt.value"
+                type="button"
+                class="segmentedBtn"
+                :class="{ active: dificuldade === opt.value }"
+                @click="toggleDificuldade(opt.value)"
+              >
+                <i :class="`mdi ${opt.icon}`"></i>
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+          <div class="metaField">
+            <label class="metaLabel">Tempo estimado</label>
+            <input
+              v-model="tempoEstimado"
+              class="metaInput"
+              placeholder="ex: 45 min"
+            />
+          </div>
+          <div class="metaField">
+            <label class="metaLabel">Tags</label>
+            <div class="tagInputRow">
+              <input
+                v-model="tagInput"
+                class="metaInput"
+                placeholder="Digite e pressione Enter"
+                @keydown="onTagKeydown"
+              />
+            </div>
+            <div v-if="tags.length" class="tagList">
+              <span v-for="(tag, i) in tags" :key="tag" class="tagChip">
+                {{ tag }}
+                <button type="button" @click="removeTag(i)"><i class="mdi mdi-close"></i></button>
+              </span>
+            </div>
+          </div>
+          <div class="metaField">
+            <label class="metaLabel">Pré-requisitos</label>
+            <textarea
+              v-model="preRequisitos"
+              class="metaTextarea"
+              placeholder="O que o aluno precisa saber antes (opcional)"
+              rows="2"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="sidebarCard">
+          <h3 class="sidebarCardTitle">
+            <i class="mdi mdi-send-outline"></i>
+            Publicação
+          </h3>
+          <div class="metaField">
+            <label class="metaLabel">Status</label>
+            <div class="segmentedGroup segmentedGroupCol">
+              <button
+                v-for="opt in statusOptions"
+                :key="opt.value"
+                type="button"
+                class="segmentedBtn"
+                :class="{ active: status === opt.value }"
+                @click="status = opt.value"
+              >
+                <i :class="`mdi ${opt.icon}`"></i>
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+          <div class="metaField">
+            <label class="metaLabel">Prazo recomendado</label>
+            <input v-model="prazoRecomendado" type="date" class="metaInput" />
+          </div>
+          <label class="fixToggle" :class="{ disabled: status !== 'publicada' }">
+            <input type="checkbox" v-model="fixada" :disabled="status !== 'publicada'" />
+            <span class="fixToggleBox"><i class="mdi mdi-check"></i></span>
+            <span>
+              Fixar atividade
+              <small v-if="status !== 'publicada'">Disponível apenas para atividades publicadas</small>
+            </span>
+          </label>
+        </div>
+
+        <div v-if="blocks.length" class="sidebarCard">
+          <h3 class="sidebarCardTitle">
+            <i class="mdi mdi-format-list-bulleted-square"></i>
+            Sumário
+          </h3>
+          <div class="outlineList">
+            <button
+              v-for="(block, idx) in blocks"
+              :key="block.id"
+              type="button"
+              class="outlineItem"
+              @click="scrollToBlock(block.id)"
+            >
+              <i :class="`mdi ${getBlockIcon(block.type)}`"></i>
+              <span class="outlineLabel">{{ getBlockLabel(block.type) }}</span>
+              <span class="outlineNumber">{{ idx + 1 }}</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+      </div>
       </template>
     </div>
   </div>
@@ -1835,7 +2331,7 @@ function getQuestionModoLabel(modo) {
 .createContent {
   position: relative;
   z-index: 1;
-  max-width: 780px;
+  max-width: 1160px;
   margin: 0 auto;
   padding: var(--sp-8) var(--sp-6);
 }
@@ -1889,6 +2385,27 @@ function getQuestionModoLabel(modo) {
   color: var(--color-text-4);
   font-size: var(--text-xs);
   font-weight: 600;
+}
+
+.collapseAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface);
+  color: var(--color-text-4);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.collapseAllBtn:hover {
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
 }
 
 .viewModeToggle {
@@ -2236,6 +2753,115 @@ function getQuestionModoLabel(modo) {
   padding: var(--sp-6);
 }
 
+.coverBanner {
+  position: relative;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, var(--color-navy-accent-muted), transparent),
+    var(--color-surface-3);
+  border-bottom: 1px solid var(--color-border-1);
+  overflow: hidden;
+}
+
+.coverBanner.hasCover {
+  height: 200px;
+}
+
+.coverImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverBanner.hasCover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.35));
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.coverBanner.hasCover:hover::after {
+  opacity: 1;
+}
+
+.coverUploadBtn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 1;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.coverBanner.hasCover .coverUploadBtn {
+  opacity: 0;
+}
+
+.coverBanner.hasCover:hover .coverUploadBtn {
+  opacity: 1;
+}
+
+.coverUploadBtn:hover {
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+}
+
+.coverDownloadBtn,
+.coverRemoveBtn {
+  position: absolute;
+  top: var(--sp-3);
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.coverDownloadBtn {
+  right: calc(var(--sp-3) + 28px + var(--sp-2));
+}
+
+.coverRemoveBtn {
+  right: var(--sp-3);
+}
+
+.coverBanner.hasCover:hover .coverDownloadBtn,
+.coverBanner.hasCover:hover .coverRemoveBtn {
+  opacity: 1;
+}
+
+.coverDownloadBtn:hover {
+  background: var(--color-navy-accent);
+}
+
+.coverRemoveBtn:hover {
+  background: var(--color-danger);
+}
+
 .titleInput {
   width: 100%;
   border: none;
@@ -2268,17 +2894,12 @@ function getQuestionModoLabel(modo) {
   color: var(--color-text-3);
   font-family: var(--font-sans);
   padding: var(--sp-2) 0;
-  margin-bottom: var(--sp-4);
+  resize: vertical;
+  line-height: var(--leading-normal);
 }
 
 .descInput::placeholder {
   color: var(--color-text-5);
-}
-
-.formMeta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-4);
 }
 
 .metaField {
@@ -2329,6 +2950,301 @@ function getQuestionModoLabel(modo) {
 .metaSelect:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.metaInput,
+.metaTextarea {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface);
+  color: var(--color-text-1);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  transition: all var(--duration-fast) var(--ease-out);
+  width: 100%;
+}
+
+.metaTextarea {
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+.metaInput:focus,
+.metaTextarea:focus {
+  outline: none;
+  border-color: var(--color-navy-accent);
+  box-shadow: 0 0 0 3px var(--color-navy-accent-muted);
+}
+
+.metaInput::placeholder,
+.metaTextarea::placeholder {
+  color: var(--color-text-5);
+}
+
+/* ── Segmented button group (dificuldade / status) ── */
+.segmentedGroup {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.segmentedGroupCol {
+  flex-direction: column;
+}
+
+.segmentedBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface);
+  color: var(--color-text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.segmentedGroupCol .segmentedBtn {
+  justify-content: flex-start;
+}
+
+.segmentedBtn i {
+  font-size: 1rem;
+}
+
+.segmentedBtn:hover {
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+}
+
+.segmentedBtn.active {
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+}
+
+/* ── Tags ── */
+.tagInputRow {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px var(--sp-2) 3px var(--sp-3);
+  border-radius: var(--radius-full);
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.tagChip button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.tagChip button:hover {
+  background: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
+}
+
+/* ── Fixar toggle ── */
+.fixToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+  font-weight: 600;
+}
+
+.fixToggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fixToggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.fixToggleBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface);
+  color: transparent;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.fixToggleBox i {
+  font-size: 0.85rem;
+}
+
+.fixToggle input:checked + .fixToggleBox {
+  background: var(--color-navy-accent);
+  border-color: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
+}
+
+.fixToggle small {
+  display: block;
+  font-weight: 400;
+  color: var(--color-text-5);
+  font-size: var(--text-xs);
+  margin-top: 2px;
+}
+
+/* ── Builder layout: main column + sidebar ── */
+.builderLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+.mainColumn {
+  min-width: 0;
+}
+
+.sidebarPanel {
+  position: sticky;
+  top: calc(var(--header-h, 64px) + var(--sp-4));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  max-height: calc(100vh - var(--header-h, 64px) - var(--sp-8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sidebarCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  flex-shrink: 0;
+}
+
+.sidebarCardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.sidebarCardTitle i {
+  color: var(--color-navy-accent);
+  font-size: 1.1rem;
+}
+
+/* ── Outline / summary ── */
+.outlineList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.outlineItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-3);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.outlineItem:hover {
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+}
+
+.outlineItem i {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  color: var(--color-text-5);
+}
+
+.outlineItem:hover i {
+  color: var(--color-navy-accent);
+}
+
+.outlineLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outlineNumber {
+  font-size: 0.65rem;
+  color: var(--color-text-5);
+  flex-shrink: 0;
+}
+
+@media (max-width: 1080px) {
+  .builderLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebarPanel {
+    position: static;
+    max-height: none;
+  }
+
+  .sidebarPanel:not(:has(.sidebarCard)) {
+    display: none;
+  }
 }
 
 .blocksSection {
@@ -2464,10 +3380,35 @@ function getQuestionModoLabel(modo) {
   box-shadow: 0 0 0 3px var(--color-navy-accent-muted);
 }
 
+.blockCard.isCollapsed {
+  padding: var(--sp-3) var(--sp-6);
+  gap: 0;
+}
+
 .blockCardHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.collapseToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-4);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.collapseToggle:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text-1);
 }
 
 .blockTypeBadge {
@@ -2480,16 +3421,29 @@ function getQuestionModoLabel(modo) {
   color: var(--color-navy-accent);
   font-size: var(--text-xs);
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .blockTypeBadge i {
   font-size: 0.85rem;
 }
 
+.blockSummary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--color-text-4);
+}
+
 .blockNumber {
   font-size: var(--text-xs);
   color: var(--color-text-5);
   font-weight: 600;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .blockMeta {
@@ -2817,12 +3771,15 @@ function getQuestionModoLabel(modo) {
 }
 
 .videoPreview iframe,
-.previewVideoWrap iframe {
+.previewVideoWrap iframe,
+.videoPreview video,
+.previewVideoWrap video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   border: none;
+  background: #000;
 }
 
 .videoInvalid {
@@ -2916,6 +3873,80 @@ function getQuestionModoLabel(modo) {
   flex: 1;
 }
 
+.uploadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.uploadBtn:hover {
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+  background: var(--color-navy-accent-muted);
+}
+
+.uploadBtn.uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.uploadBtn .mdi-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.uploadDropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-border-2);
+  background: var(--color-surface-2);
+  color: var(--color-text-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.uploadDropzone i {
+  font-size: 1.6rem;
+  color: var(--color-text-5);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.uploadDropzone:hover {
+  border-color: var(--color-navy-accent);
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+}
+
+.uploadDropzone:hover i {
+  color: var(--color-navy-accent);
+}
+
+.uploadDropzone.uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .blockInputSmall {
   max-width: 110px;
 }
@@ -2941,6 +3972,19 @@ function getQuestionModoLabel(modo) {
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-2);
   background: var(--color-surface-2);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.fileCardPreview:hover {
+  border-color: var(--color-navy-accent);
+  background: var(--color-navy-accent-muted);
+}
+
+.fileCardPreview:hover .fileCardDownload {
+  color: var(--color-navy-accent);
 }
 
 .fileCardIcon {
@@ -3719,8 +4763,8 @@ function getQuestionModoLabel(modo) {
 
 .addMenu {
   width: 100%;
-  max-width: 640px;
-  max-height: min(640px, calc(100vh - 2 * var(--sp-6)));
+  max-width: 700px;
+  max-height: min(720px, calc(100vh - 2 * var(--sp-6)));
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-xl);
@@ -3809,15 +4853,38 @@ function getQuestionModoLabel(modo) {
   font-size: 1.6rem;
 }
 
-.addMenuGrid {
+.addMenuBody {
   padding: var(--sp-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.addMenuCategory + .addMenuCategory {
+  margin-top: var(--sp-4);
+}
+
+.addMenuCategoryTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2) var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-navy-accent);
+}
+
+.addMenuCategoryTitle i {
+  font-size: 0.95rem;
+}
+
+.addMenuGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
 }
 
 @media (min-width: 560px) {
@@ -3934,6 +5001,13 @@ function getQuestionModoLabel(modo) {
   overflow: hidden;
 }
 
+.previewCover {
+  display: block;
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
 .previewBody {
   padding: var(--sp-8) var(--sp-8);
 }
@@ -3960,12 +5034,18 @@ function getQuestionModoLabel(modo) {
 
 .previewTag {
   display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-full);
   background: var(--color-navy-accent-muted);
   color: var(--color-navy-accent);
   font-size: var(--text-xs);
   font-weight: 600;
+}
+
+.previewTag i {
+  font-size: 0.85rem;
 }
 
 .previewBlocks {
@@ -4509,10 +5589,6 @@ function getQuestionModoLabel(modo) {
   .headerActions {
     width: 100%;
     justify-content: flex-end;
-  }
-
-  .formMeta {
-    grid-template-columns: 1fr;
   }
 
   .previewBody {

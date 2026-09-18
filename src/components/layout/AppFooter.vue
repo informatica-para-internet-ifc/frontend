@@ -13,7 +13,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 const links = [
   { to: '/', label: 'Início', icon: 'mdi-home-outline' },
   { to: '/buscar', label: 'Buscar', icon: 'mdi-magnify' },
-  { to: '/anos', label: 'Anos', icon: 'mdi-school-outline' },
   { to: '/sobre', label: 'Sobre', icon: 'mdi-information-outline' },
 ]
 </script>
@@ -75,7 +74,7 @@ const links = [
 
     <div class="footerBottom">
       <div class="footerBottomInner">
-        <span class="copy">&copy; {{ year }} Informática para Internet. Todos os direitos reservados.</span>
+        <span class="copy">&copy; {{ year }} Informática para Internet.</span>
       </div>
     </div>
   </footer>
@@ -192,7 +191,7 @@ const links = [
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--sp-3);
   flex-wrap: wrap;
 }
@@ -214,14 +213,6 @@ const links = [
 .madeWith i {
   color: var(--color-danger);
   font-size: 0.85rem;
-  animation: heartbeat 1.6s ease-in-out infinite;
-}
-
-@keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  25% { transform: scale(1.2); }
-  40% { transform: scale(1); }
-  60% { transform: scale(1.15); }
 }
 
 @media (max-width: 860px) {

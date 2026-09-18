@@ -71,12 +71,7 @@ async function duplicate(ativ) {
 
 <template>
   <div class="disciplinaView">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <div class="disciplinaContent" v-if="disciplina">
+<div class="disciplinaContent" v-if="disciplina">
       <div class="discHeader" v-reveal>
         <button class="backBtn" @click="router.back()">
           <i class="mdi mdi-arrow-left"></i>
@@ -100,6 +95,7 @@ async function duplicate(ativ) {
           v-for="(ativ, idx) in atividades"
           :key="ativ.id"
           class="atividadeCard"
+          :class="{ isFixada: ativ.fixada }"
           v-reveal.left="idx % 8"
         >
           <RouterLink
@@ -108,7 +104,13 @@ async function duplicate(ativ) {
           >
             <div class="atividadeNumber">{{ String(idx + 1).padStart(2, '0') }}</div>
             <div class="atividadeContent">
-              <h2 class="atividadeTitle">{{ ativ.title }}</h2>
+              <div class="atividadeTitleRow">
+                <h2 class="atividadeTitle">{{ ativ.title }}</h2>
+                <span v-if="ativ.fixada" class="fixadaBadge">
+                  <i class="mdi mdi-pin"></i>
+                  Fixada
+                </span>
+              </div>
               <p class="atividadeDesc">{{ ativ.desc }}</p>
               <div class="atividadeMeta">
                 <span class="metaItem">
@@ -271,31 +273,30 @@ async function duplicate(ativ) {
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: all var(--duration-normal) var(--ease-spring);
-  position: relative;
-}
-
-.atividadeCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--color-navy-accent);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .atividadeCard:hover {
-  border-color: var(--color-border-2);
+  border-color: var(--color-navy-accent);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
-.atividadeCard:hover::before {
-  opacity: 1;
+.atividadeCard:active {
+  transform: translateY(0);
+}
+
+.atividadeCard.isFixada {
+  border-color: var(--color-navy-accent);
+  background: var(--color-navy-accent-muted);
+}
+
+.atividadeCard.isFixada .atividadeNumber {
+  background: var(--color-navy-accent);
 }
 
 .atividadeLink {
@@ -322,11 +323,6 @@ async function duplicate(ativ) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-out);
-}
-
-.atividadeCard:hover .atividadeNumber {
-  transform: scale(1.06);
 }
 
 .atividadeContent {
@@ -334,11 +330,36 @@ async function duplicate(ativ) {
   min-width: 0;
 }
 
+.atividadeTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
+}
+
 .atividadeTitle {
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-1);
-  margin-bottom: var(--sp-1);
+}
+
+.fixadaBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-full);
+  background: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  flex-shrink: 0;
+}
+
+.fixadaBadge i {
+  font-size: 0.75rem;
 }
 
 .atividadeDesc {
@@ -357,13 +378,13 @@ async function duplicate(ativ) {
 .atividadeArrow {
   font-size: 1.2rem;
   color: var(--color-text-5);
-  transition: all var(--duration-normal) var(--ease-spring);
+  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
 }
 
 .atividadeCard:hover .atividadeArrow {
   color: var(--color-navy-accent);
-  transform: translateX(6px) scale(1.1);
+  transform: translateX(4px);
 }
 
 .atividadeActions {

@@ -4,21 +4,16 @@ import { RouterLink } from 'vue-router'
 
 <template>
   <div class="notFoundView">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <div class="notFoundContent">
-      <div class="notFoundBadge animate-scale-in">
+<div class="notFoundContent animate-fade-in-up">
+      <div class="notFoundBadge">
         <i class="mdi mdi-ghost-outline"></i>
       </div>
-      <div class="notFoundCode animate-fade-in-up delay-1">404</div>
-      <h1 class="notFoundTitle animate-fade-in-up delay-2">Página não encontrada</h1>
-      <p class="notFoundDesc animate-fade-in-up delay-3">
+      <div class="notFoundCode">404</div>
+      <h1 class="notFoundTitle">Página não encontrada</h1>
+      <p class="notFoundDesc">
         O endereço que você acessou não existe ou foi movido.
       </p>
-      <RouterLink to="/" class="backHome animate-fade-in-up delay-4">
+      <RouterLink to="/" class="backHome">
         <i class="mdi mdi-home-outline"></i>
         Voltar ao início
       </RouterLink>
@@ -56,27 +51,15 @@ import { RouterLink } from 'vue-router'
   align-items: center;
   justify-content: center;
   margin-bottom: var(--sp-2);
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.notFoundBadge:hover {
-  transform: scale(1.05);
-  border-color: var(--color-navy-accent);
-  background: var(--color-navy-accent-muted);
 }
 
 .notFoundBadge i {
   font-size: 2.5rem;
   color: var(--color-text-5);
-  transition: color var(--duration-fast) var(--ease-out);
-}
-
-.notFoundBadge:hover i {
-  color: var(--color-navy-accent);
 }
 
 .notFoundCode {
-  font-size: 7rem;
+  font-size: 6rem;
   font-weight: 900;
   color: var(--color-text-5);
   line-height: 1;
@@ -93,5 +76,11 @@ import { RouterLink } from 'vue-router'
   font-size: var(--text-md);
   color: var(--color-text-4);
   max-width: 400px;
+}
+
+@media (max-width: 420px) {
+  .notFoundCode {
+    font-size: 4rem;
+  }
 }
 </style>

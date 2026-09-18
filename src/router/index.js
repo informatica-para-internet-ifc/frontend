@@ -22,9 +22,7 @@ const router = createRouter({
     },
     {
       path: '/anos',
-      name: 'anos',
-      component: () => import('../views/AnosView.vue'),
-      meta: { title: 'Anos do Curso' },
+      redirect: '/',
     },
     {
       path: '/ano/:anoId',

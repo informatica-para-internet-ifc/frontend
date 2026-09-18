@@ -129,16 +129,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div class="searchView">
-    <div class="pageDeco">
-      <div class="pageDecoDots"></div>
-      <div class="pageDecoGrid"></div>
-    </div>
-
-    <div class="searchContent">
+<div class="searchContent">
       <div class="searchHero animate-fade-in-up">
-        <div class="heroIcon" :class="{ focused: isFocused }">
-          <i class="mdi mdi-magnify"></i>
-        </div>
         <h1 class="heroTitle">Buscar</h1>
         <p class="heroDesc">
           Pesquise atividades por nome ou conteúdo e refine os resultados por ano e matéria.
@@ -357,67 +349,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   z-index: 1;
   max-width: var(--max-w);
   margin: 0 auto;
-  padding: var(--sp-10) var(--sp-6);
+  padding: var(--sp-8) var(--sp-6);
 }
 
 .searchHero {
   text-align: center;
   margin-bottom: var(--sp-8);
-}
-
-.heroIcon {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto var(--sp-6);
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.heroIcon::before {
-  content: '';
-  position: absolute;
-  inset: -10px;
-  border-radius: calc(var(--radius-xl) + 10px);
-  border: 1.5px solid var(--color-navy-accent);
-  opacity: 0;
-  transform: scale(0.82);
-  transition: all var(--duration-normal) var(--ease-spring);
-  pointer-events: none;
-}
-
-.heroIcon.focused {
-  background: var(--color-navy-accent);
-  border-color: var(--color-navy-accent);
-  box-shadow: 0 0 32px var(--color-navy-accent-muted);
-  transform: scale(1.08);
-}
-
-.heroIcon.focused::before {
-  opacity: 0.45;
-  transform: scale(1);
-  animation: heroPulse 2.2s var(--ease-out) infinite;
-}
-
-@keyframes heroPulse {
-  0%, 100% { opacity: 0.45; transform: scale(1); }
-  50% { opacity: 0.12; transform: scale(1.1); }
-}
-
-.heroIcon i {
-  font-size: 2rem;
-  color: var(--color-navy-accent);
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.heroIcon.focused i {
-  color: var(--color-text-on-accent);
-  transform: scale(1.1);
 }
 
 .heroTitle {
@@ -780,7 +717,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .resultItem {
   position: relative;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -789,50 +725,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.resultItem::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, var(--color-navy-accent), var(--color-navy-accent-hover));
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform var(--duration-normal) var(--ease-spring);
-}
-
-.resultItem::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -80%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(105deg, transparent, var(--color-navy-accent-muted), transparent);
-  transform: skewX(-18deg);
-  transition: left 0.55s var(--ease-out);
-  pointer-events: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .resultItem:hover {
-  background: var(--color-surface-3);
-  border-color: var(--color-border-2);
-  transform: translateX(4px) translateY(-2px);
-  box-shadow: var(--shadow-md), 0 4px 24px var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
-.resultItem:hover::before {
-  transform: scaleY(1);
-}
-
-.resultItem:hover::after {
-  left: 140%;
+.resultItem:active {
+  transform: translateY(0);
 }
 
 .resultLeft {
@@ -852,20 +759,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-spring);
 }
 
 .resultIcon i {
   font-size: 1.1rem;
   color: var(--color-navy-accent);
-}
-
-.resultItem:hover .resultIcon {
-  background: var(--color-navy-accent);
-}
-
-.resultItem:hover .resultIcon i {
-  color: var(--color-text-on-accent);
 }
 
 .resultInfo {
@@ -1051,42 +949,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .anoBlock {
-  position: relative;
-  overflow: hidden;
   border-radius: var(--radius-xl);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.anoBlock::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--color-navy-accent),
-    var(--color-navy-accent-hover),
-    var(--color-navy-accent)
-  );
-  background-size: 200% 100%;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform var(--duration-normal) var(--ease-spring);
-  z-index: 1;
-}
-
-.anoBlock:hover {
-  border-color: var(--color-border-2);
-  box-shadow: var(--shadow-md), 0 4px 24px var(--color-navy-accent-muted);
-  transform: translateY(-2px);
-}
-
-.anoBlock:hover::before {
-  transform: scaleX(1);
+  box-shadow: var(--shadow-sm);
 }
 
 .anoHeader {

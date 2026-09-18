@@ -27,6 +27,7 @@ function mapAtividade(a) {
     id: a.id,
     title: a.titulo,
     desc: a.descricao || '',
+    capa: a.capa || '',
     ano: a.ano_numero,
     anoId: a.ano,
     disciplinaId: a.disciplina,

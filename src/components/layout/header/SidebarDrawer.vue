@@ -3,20 +3,21 @@ import { RouterLink, useRoute } from 'vue-router'
 import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
 import UserButton from '../ui/user/UserButton.vue'
-import { anos } from '../../../data/disciplinas.js'
 import { useAuthStore } from '../../../stores/auth.js'
+import { useInstallPrompt } from '../../../composables/useInstallPrompt.js'
 
 defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 const route = useRoute()
 const auth = useAuthStore()
+const { canInstall, promptInstall } = useInstallPrompt()
+
+function install() {
+  promptInstall()
+  emit('close')
+}
 
 function isActive(path) { return route.path === path }
-
-const anosList = Object.entries(anos).map(([id, ano]) => ({
-  id, label: ano.label, desc: ano.desc,
-  icon: id === '1' ? 'mdi-numeric-1-box-outline' : id === '2' ? 'mdi-numeric-2-box-outline' : 'mdi-numeric-3-box-outline',
-}))
 </script>
 
 <template>
@@ -27,11 +28,10 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 
     <Transition name="drawer">
       <aside id="sidebar-drawer" v-if="open" class="sidebar" role="dialog" aria-modal="true" aria-label="Menu de navegação">
-        <div class="sidebarDots"></div>
         <div class="sidebarBorder"></div>
 
         <div class="sidebarHeader">
-          <AppLogo @click="emit('close')" />
+          <AppLogo desc="Curso Técnico em Informática" small @click="emit('close')" />
           <button class="closeBtn" aria-label="Fechar menu" @click="emit('close')">
             <i class="mdi mdi-close"></i>
           </button>
@@ -39,57 +39,44 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 
         <nav class="sidebarNav">
           <RouterLink to="/" class="sidebarLink" :class="{ active: isActive('/') }" :style="{ '--i': 0 }" @click="emit('close')">
-            <i class="mdi mdi-home-outline"></i>
+            <i class="mdi mdi-school-outline"></i>
             Início
           </RouterLink>
 
-          <RouterLink to="/anos" class="sidebarLink" :class="{ active: isActive('/anos') }" :style="{ '--i': 1 }" @click="emit('close')">
-            <i class="mdi mdi-school-outline"></i>
-            Anos
-          </RouterLink>
-
-          <RouterLink
-            v-for="(ano, i) in anosList" :key="ano.id"
-            :to="`/ano/${ano.id}`"
-            class="sidebarLink sidebarLinkSub"
-            :class="{ active: isActive(`/ano/${ano.id}`) }"
-            :style="{ '--i': i + 2 }"
-            @click="emit('close')"
-          >
-            <i :class="`mdi ${ano.icon}`"></i>
-            {{ ano.label }}
-          </RouterLink>
-
-          <RouterLink to="/buscar" class="sidebarLink" :class="{ active: isActive('/buscar') }" :style="{ '--i': 5 }" @click="emit('close')">
+          <RouterLink to="/buscar" class="sidebarLink" :class="{ active: isActive('/buscar') }" :style="{ '--i': 1 }" @click="emit('close')">
             <i class="mdi mdi-magnify"></i>
             Buscar
           </RouterLink>
 
-          <RouterLink to="/sobre" class="sidebarLink" :class="{ active: isActive('/sobre') }" :style="{ '--i': 6 }" @click="emit('close')">
+          <RouterLink to="/sobre" class="sidebarLink" :class="{ active: isActive('/sobre') }" :style="{ '--i': 2 }" @click="emit('close')">
             <i class="mdi mdi-information-outline"></i>
             Sobre
           </RouterLink>
 
-          <div class="sidebarDivider" :style="{ '--i': 7 }"></div>
+          <button v-if="canInstall" type="button" class="sidebarLink" :style="{ '--i': 3 }" @click="install">
+            <i class="mdi mdi-download-outline"></i>
+            Instalar app
+          </button>
 
-          <RouterLink v-if="auth.logged" to="/criar-atividade" class="sidebarLink sidebarLinkAccent" :class="{ active: isActive('/criar-atividade') }" :style="{ '--i': 8 }" @click="emit('close')">
+          <div v-if="auth.logged" class="sidebarDivider" :style="{ '--i': 4 }"></div>
+
+          <RouterLink
+            v-if="auth.logged"
+            to="/criar-atividade"
+            class="sidebarLink sidebarLinkAccent"
+            :class="{ active: isActive('/criar-atividade') }"
+            :style="{ '--i': 5 }"
+            @click="emit('close')"
+          >
             <i class="mdi mdi-plus-circle"></i>
             Criar Atividade
           </RouterLink>
-
-          <div class="sidebarInfo" :style="{ '--i': 9 }">
-            <i class="mdi mdi-school-outline"></i>
-            <div>
-              <strong>Curso Técnico em Informática</strong>
-              <span>IFC Campus Araquari</span>
-            </div>
-          </div>
         </nav>
 
         <div class="sidebarFooter">
           <div class="sidebarFooterRow">
             <ThemeToggle />
-            <UserButton />
+            <UserButton @click="emit('close')" />
           </div>
         </div>
       </aside>
@@ -121,19 +108,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* ── Ambient Dots ── */
-.sidebarDots {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: radial-gradient(var(--color-navy-accent) 0.5px, transparent 0.5px);
-  background-size: 20px 20px;
-  opacity: 0.04;
-  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 20%, transparent 70%);
-  pointer-events: none;
 }
 
 /* ── Border ── */
@@ -183,6 +157,9 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   position: relative;
   z-index: 2;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: var(--sp-3);
   overflow-y: auto;
 }
@@ -190,13 +167,19 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 .sidebarLink {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
+  border: none;
   border-radius: var(--radius-md);
+  background: transparent;
+  font-family: inherit;
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--color-text-2);
   text-decoration: none;
+  text-align: left;
+  cursor: pointer;
   transition: all 0.3s var(--ease-out);
   position: relative;
   overflow: hidden;
@@ -280,52 +263,10 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 
 .sidebarLinkAccent.active::before { background: var(--color-text-on-accent); }
 
-.sidebarLinkSub {
-  padding-left: var(--sp-8);
-  font-size: var(--text-sm);
-}
-
 .sidebarDivider {
   height: 1px;
   margin: var(--sp-2) var(--sp-4);
   background: linear-gradient(90deg, var(--color-border-1), var(--color-border-2), var(--color-border-1));
-}
-
-.sidebarInfo {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  margin-top: auto;
-  padding: var(--sp-4);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-2);
-  border: 1px dashed var(--color-border-2);
-  animation: linkEnter 0.4s var(--ease-out) both;
-  animation-delay: calc(0.03s * var(--i, 0));
-}
-
-.sidebarInfo i {
-  font-size: 1.4rem;
-  color: var(--color-navy-accent);
-  flex-shrink: 0;
-}
-
-.sidebarInfo div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.sidebarInfo strong {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--color-text-2);
-}
-
-.sidebarInfo span {
-  font-size: var(--text-xs);
-  color: var(--color-text-5);
 }
 
 .sidebarLink i {
@@ -334,8 +275,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   color: var(--color-text-4);
   transition: transform 0.3s var(--ease-spring), color 0.3s var(--ease-out);
 }
-
-.sidebarLinkSub i { font-size: 1rem; }
 
 .sidebarLink:hover i,
 .sidebarLink.active i { color: var(--color-navy-accent); }
@@ -353,6 +292,7 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-3);
 }
 
 /* ── Transitions ── */

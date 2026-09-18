@@ -106,7 +106,7 @@ onUnmounted(() => {
 }
 
 .mobileHeader.scrolled {
-  box-shadow: var(--shadow-md), 0 0 60px var(--color-navy-accent-muted);
+  box-shadow: var(--shadow-md);
   border-bottom-color: var(--color-border-2);
 }
 

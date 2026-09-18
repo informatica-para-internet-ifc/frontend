@@ -5,11 +5,12 @@ import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
 import SearchButton from '../ui/search/SearchButton.vue'
 import UserButton from '../ui/user/UserButton.vue'
-import AnosDropdown from './AnosDropdown.vue'
 import { useAuthStore } from '../../../stores/auth.js'
+import { useInstallPrompt } from '../../../composables/useInstallPrompt.js'
 
 const route = useRoute()
 const auth = useAuthStore()
+const { canInstall, promptInstall } = useInstallPrompt()
 const scrolled = ref(false)
 const reading = ref(0)
 
@@ -48,11 +49,9 @@ onUnmounted(() => {
 
         <nav class="nav" aria-label="Navegação principal">
           <RouterLink to="/" class="navLink" :class="{ active: isActive('home') }">
-            <i class="mdi mdi-home-outline"></i>
+            <i class="mdi mdi-school-outline"></i>
             <span>Início</span>
           </RouterLink>
-
-          <AnosDropdown />
 
           <RouterLink to="/sobre" class="navLink" :class="{ active: isActive('sobre') }">
             <i class="mdi mdi-information-outline"></i>
@@ -66,6 +65,11 @@ onUnmounted(() => {
           <div class="actionsDivider" aria-hidden="true"></div>
 
           <div class="iconGroup">
+            <span v-if="canInstall" class="tip" data-tip="Instalar app">
+              <button class="installBtn" aria-label="Instalar app" @click="promptInstall">
+                <i class="mdi mdi-download-outline"></i>
+              </button>
+            </span>
             <span class="tip" data-tip="Alternar tema">
               <ThemeToggle />
             </span>
@@ -321,6 +325,30 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--sp-2);
 }
+
+.installBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-border-2);
+  color: var(--color-text-3);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.installBtn:hover {
+  border-color: var(--color-navy-accent);
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+  transform: scale(1.05);
+}
+
+.installBtn:active { transform: scale(0.92); }
 
 /* ── Create Button ── */
 .createBtn {

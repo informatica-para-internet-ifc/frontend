@@ -36,6 +36,7 @@ function mapAtividade(a) {
     autorNome: a.autor_nome,
     status: a.status,
     fixada: a.fixada,
+    categoria: a.categoria || 'atividade',
     dificuldade: a.dificuldade,
     tempoEstimado: a.tempo_estimado,
     tags: a.tags || [],

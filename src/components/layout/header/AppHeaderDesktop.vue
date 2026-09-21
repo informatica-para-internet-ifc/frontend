@@ -358,22 +358,21 @@ onUnmounted(() => {
   gap: var(--sp-2);
   padding: 5px var(--sp-4) 5px 5px;
   border-radius: var(--radius-full);
-  background: var(--color-navy-accent);
-  color: var(--color-text-on-accent);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface-3);
+  color: var(--color-text-2);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .createBtn:hover {
-  background: var(--color-navy-accent-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.createBtn:active {
-  transform: translateY(0);
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
 }
 
 .createIcon {
@@ -383,7 +382,9 @@ onUnmounted(() => {
   width: 26px;
   height: 26px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .createIcon i {

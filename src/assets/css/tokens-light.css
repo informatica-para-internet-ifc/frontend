@@ -23,10 +23,12 @@
   --color-navy-accent-muted: rgba(4, 120, 87, 0.08);
 
   --color-success: #16a34a;
+  --color-success-hover: #15803d;
   --color-success-muted: rgba(22, 163, 74, 0.08);
   --color-warning: #b45309;
   --color-warning-muted: rgba(180, 83, 9, 0.08);
   --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
   --color-danger-muted: rgba(220, 38, 38, 0.08);
   --color-info: #2563eb;
   --color-info-muted: rgba(37, 99, 235, 0.08);

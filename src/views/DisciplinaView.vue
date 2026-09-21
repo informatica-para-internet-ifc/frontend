@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import AppListCard from '../components/ui/AppListCard.vue'
 import {
   getDisciplina,
   getAtividades,
@@ -8,6 +9,7 @@ import {
   deleteAtividade,
   duplicarAtividade,
 } from '../data/disciplinas.js'
+import { categoriaOptions } from '../utils/activityBlocks.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useToast } from '../composables/useToast.js'
 
@@ -23,6 +25,40 @@ const toast = useToast()
 const disciplina = computed(() => getDisciplina(Number(props.anoId), props.disciplinaId))
 const desc = computed(() => disciplinaDescricoes[props.disciplinaId] || '')
 const atividades = computed(() => getAtividades(props.disciplinaId))
+
+const pluralLabels = { questao: 'Questões', atividade: 'Atividades', tutorial: 'Tutoriais' }
+const categoriaTabs = categoriaOptions.map((opt) => ({ ...opt, pluralLabel: pluralLabels[opt.value] }))
+
+function categoriaDe(ativ) {
+  return ativ.categoria || 'atividade'
+}
+
+const categoriaCounts = computed(() => {
+  const counts = { questao: 0, atividade: 0, tutorial: 0 }
+  for (const ativ of atividades.value) counts[categoriaDe(ativ)]++
+  return counts
+})
+
+const activeCategoria = ref('atividade')
+const atividadesFiltradas = computed(() =>
+  atividades.value.filter((a) => categoriaDe(a) === activeCategoria.value),
+)
+
+let userChangedTab = false
+watch(
+  categoriaCounts,
+  (counts) => {
+    if (userChangedTab || counts[activeCategoria.value] > 0) return
+    const firstNonEmpty = categoriaTabs.find((t) => counts[t.value] > 0)
+    if (firstNonEmpty) activeCategoria.value = firstNonEmpty.value
+  },
+  { immediate: true },
+)
+
+function selectCategoria(value) {
+  userChangedTab = true
+  activeCategoria.value = value
+}
 
 const showDeleteModal = ref(false)
 const deletingAtividade = ref(null)
@@ -90,42 +126,55 @@ async function duplicate(ativ) {
         </div>
       </div>
 
-      <div v-if="atividades.length" class="atividadesList">
-        <div
-          v-for="(ativ, idx) in atividades"
+      <div v-if="atividades.length" class="categoriaTabs" role="tablist">
+        <button
+          v-for="tab in categoriaTabs"
+          :key="tab.value"
+          type="button"
+          role="tab"
+          class="categoriaTab"
+          :class="{ active: activeCategoria === tab.value }"
+          :aria-selected="activeCategoria === tab.value"
+          @click="selectCategoria(tab.value)"
+        >
+          <i :class="`mdi ${tab.icon}`"></i>
+          {{ tab.pluralLabel }}
+          <span class="categoriaTabCount">{{ categoriaCounts[tab.value] }}</span>
+        </button>
+      </div>
+
+      <div v-if="atividadesFiltradas.length" class="atividadesList">
+        <AppListCard
+          v-for="(ativ, idx) in atividadesFiltradas"
           :key="ativ.id"
-          class="atividadeCard"
-          :class="{ isFixada: ativ.fixada }"
+          :to="`/atividade/${disciplinaId}/${ativ.id}`"
+          :highlighted="ativ.fixada"
           v-reveal.left="idx % 8"
         >
-          <RouterLink
-            :to="`/atividade/${disciplinaId}/${ativ.id}`"
-            class="atividadeLink"
-          >
+          <template #leading>
             <div class="atividadeNumber">{{ String(idx + 1).padStart(2, '0') }}</div>
-            <div class="atividadeContent">
-              <div class="atividadeTitleRow">
-                <h2 class="atividadeTitle">{{ ativ.title }}</h2>
-                <span v-if="ativ.fixada" class="fixadaBadge">
-                  <i class="mdi mdi-pin"></i>
-                  Fixada
-                </span>
-              </div>
-              <p class="atividadeDesc">{{ ativ.desc }}</p>
-              <div class="atividadeMeta">
-                <span class="metaItem">
-                  <i class="mdi mdi-help-circle-outline"></i>
-                  {{(ativ.questoes || []).length}} questão{{(ativ.questoes || []).length > 1 ? 's' : ''}}
-                </span>
-              </div>
-            </div>
-            <i class="mdi mdi-chevron-right atividadeArrow"></i>
-          </RouterLink>
-          <div v-if="auth.isLoggedIn" class="atividadeActions">
+          </template>
+          <div class="atividadeTitleRow">
+            <h2 class="atividadeTitle">{{ ativ.title }}</h2>
+            <span v-if="ativ.fixada" class="fixadaBadge">
+              <i class="mdi mdi-pin"></i>
+              Fixada
+            </span>
+          </div>
+          <p class="atividadeDesc">{{ ativ.desc }}</p>
+          <div class="atividadeMeta">
+            <span class="metaItem">
+              <i class="mdi mdi-help-circle-outline"></i>
+              {{(ativ.questoes || []).length}} questão{{(ativ.questoes || []).length > 1 ? 's' : ''}}
+            </span>
+          </div>
+
+          <template v-if="auth.isLoggedIn" #actions>
             <RouterLink
               :to="`/editar-atividade/${disciplinaId}/${ativ.id}`"
               class="actionBtnSmall editBtn"
               title="Editar atividade"
+              @click.stop
             >
               <i class="mdi mdi-pencil-outline"></i>
             </RouterLink>
@@ -133,19 +182,27 @@ async function duplicate(ativ) {
               class="actionBtnSmall duplicateBtn"
               title="Duplicar atividade"
               :disabled="duplicatingId === ativ.id"
-              @click.prevent="duplicate(ativ)"
+              @click.prevent.stop="duplicate(ativ)"
             >
               <i :class="duplicatingId === ativ.id ? 'mdi mdi-loading mdi-spin' : 'mdi mdi-content-copy'"></i>
             </button>
             <button
               class="actionBtnSmall deleteBtn"
               title="Excluir atividade"
-              @click.prevent="confirmDelete(ativ)"
+              @click.prevent.stop="confirmDelete(ativ)"
             >
               <i class="mdi mdi-delete-outline"></i>
             </button>
-          </div>
+          </template>
+        </AppListCard>
+      </div>
+
+      <div v-else-if="atividades.length" class="emptyState animate-fade-in-up">
+        <div class="emptyStateIcon">
+          <i :class="`mdi ${categoriaTabs.find((t) => t.value === activeCategoria)?.icon}`"></i>
         </div>
+        <h2>Nenhum conteúdo aqui</h2>
+        <p>Esta disciplina ainda não possui itens na categoria "{{ pluralLabels[activeCategoria] }}".</p>
       </div>
 
       <div v-else class="emptyState animate-fade-in-up">
@@ -153,7 +210,7 @@ async function duplicate(ativ) {
           <i class="mdi mdi-file-document-outline"></i>
         </div>
         <h2>Nenhuma atividade</h2>
-        <p>Esta disciplina ainda não possui atividades cadastradas.</p>
+        <p>Esta disciplina ainda não possui conteúdo cadastrado.</p>
       </div>
     </div>
 
@@ -263,52 +320,76 @@ async function duplicate(ativ) {
   line-height: var(--leading-relaxed);
 }
 
+.categoriaTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--color-border-1);
+}
+
+.categoriaTab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-2);
+  background: var(--color-surface-2);
+  color: var(--color-text-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.categoriaTab i {
+  font-size: 1rem;
+}
+
+.categoriaTab:hover {
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
+}
+
+.categoriaTab.active {
+  background: var(--color-navy-accent);
+  border-color: var(--color-navy-accent);
+  color: var(--color-text-on-accent);
+}
+
+.categoriaTabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-navy-accent-muted);
+  color: var(--color-navy-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.categoriaTab.active .categoriaTabCount {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--color-text-on-accent);
+}
+
 .atividadesList {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
 
-.atividadeCard {
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  transition: border-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.atividadeCard:hover {
-  border-color: var(--color-navy-accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.atividadeCard:active {
-  transform: translateY(0);
-}
-
-.atividadeCard.isFixada {
-  border-color: var(--color-navy-accent);
-  background: var(--color-navy-accent-muted);
-}
-
-.atividadeCard.isFixada .atividadeNumber {
+.listCard.highlighted .atividadeNumber {
   background: var(--color-navy-accent);
-}
-
-.atividadeLink {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
-  text-decoration: none;
-}
-
-.atividadeCard:hover .atividadeLink {
-  background: var(--color-surface-3);
 }
 
 .atividadeNumber {
@@ -323,11 +404,6 @@ async function duplicate(ativ) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.atividadeContent {
-  flex: 1;
-  min-width: 0;
 }
 
 .atividadeTitleRow {
@@ -373,24 +449,6 @@ async function duplicate(ativ) {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-}
-
-.atividadeArrow {
-  font-size: 1.2rem;
-  color: var(--color-text-5);
-  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-  flex-shrink: 0;
-}
-
-.atividadeCard:hover .atividadeArrow {
-  color: var(--color-navy-accent);
-  transform: translateX(4px);
-}
-
-.atividadeActions {
-  display: flex;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-6) var(--sp-4);
 }
 
 .actionBtnSmall {
@@ -560,10 +618,6 @@ async function duplicate(ativ) {
 @media (max-width: 480px) {
   .discTitle {
     font-size: var(--text-xl);
-  }
-
-  .atividadeLink {
-    padding: var(--sp-4);
   }
 
   .atividadeNumber {

@@ -29,20 +29,45 @@ const pessoas = [
       </div>
 
       <div class="sobreBody" v-reveal="1">
-        <p>
-          Isso aqui começou como um problema chato: material do curso espalhado entre grupo do
-          WhatsApp, Google Classroom, pen-drive e memória de quem já fez a disciplina. Toda vez
-          que alguém precisava de uma lista antiga, tinha que perguntar pra alguém.
-        </p>
-        <p>
-          A monitoria de Informática resolveu juntar tudo num lugar só, organizado por ano e
-          disciplina, sem precisar de login pra consultar. Professores continuam publicando o
-          conteúdo pelos canais de sempre — este site só reúne e organiza.
-        </p>
-        <p>
-          É um projeto de estudante pra estudante, ainda em construção. Se encontrar algo quebrado,
-          desatualizado ou faltando, o contato está no rodapé — toda sugestão ajuda.
-        </p>
+        <section class="sobreSection">
+          <h2 class="sobreSectionTitle">O que é</h2>
+          <p>
+            Este site é um catálogo do material do Curso Técnico em Informática para Internet do
+            IFC Campus Araquari, organizado por ano e disciplina. Reúne listas de exercícios,
+            provas, projetos e outros materiais de apoio num só lugar, com acesso livre e sem
+            necessidade de login para consultar.
+          </p>
+        </section>
+
+        <section class="sobreSection">
+          <h2 class="sobreSectionTitle">Por que existe</h2>
+          <p>
+            Antes deste projeto, o material do curso ficava espalhado entre grupos de WhatsApp,
+            Google Classroom e arquivos trocados individualmente entre alunos — sem um ponto único
+            de consulta. Encontrar uma lista antiga dependia de perguntar a alguém que já tivesse
+            cursado a disciplina. Este site resolve esse problema centralizando o conteúdo e
+            facilitando o acesso para toda a turma, atual e futura.
+          </p>
+        </section>
+
+        <section class="sobreSection">
+          <h2 class="sobreSectionTitle">Como funciona</h2>
+          <p>
+            Os professores continuam publicando o conteúdo pelos canais de sempre — este site não
+            substitui esse processo, apenas reúne e organiza o que já foi disponibilizado. A
+            manutenção e atualização do catálogo são feitas pela monitoria de Informática.
+          </p>
+        </section>
+
+        <section class="sobreSection">
+          <h2 class="sobreSectionTitle">Contribua</h2>
+          <p>
+            Este é um projeto em desenvolvimento contínuo, mantido por estudantes para estudantes.
+            Encontrou algo quebrado, desatualizado ou faltando? O contato está no rodapé desta
+            página — toda sugestão é bem-vinda e ajuda a manter o material atualizado para os
+            próximos alunos do curso.
+          </p>
+        </section>
       </div>
 
       <div class="sobreTeam" v-reveal="2">
@@ -101,8 +126,22 @@ const pessoas = [
 .sobreBody {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-6);
   margin-bottom: var(--sp-12);
+}
+
+.sobreSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sobreSectionTitle {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-navy-accent);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
 }
 
 .sobreBody p {

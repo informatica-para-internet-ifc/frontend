@@ -33,9 +33,9 @@ const auth = useAuthStore()
 }
 
 .userBtn:not(.loggedIn):hover {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-primary);
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
   transform: translateY(-1px);
 }
 

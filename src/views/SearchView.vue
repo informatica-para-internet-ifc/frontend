@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
+import AppListCard from '../components/ui/AppListCard.vue'
 import { searchAtividades, anos } from '../data/disciplinas.js'
 
 const route = useRoute()
@@ -12,6 +13,10 @@ const selectedDisc = ref(typeof route.query.disciplina === 'string' ? route.quer
 const inputEl = ref(null)
 const isFocused = ref(false)
 const showFilters = ref(false)
+let syncTimeout = null
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform || navigator.userAgent)
+const shortcutHint = isMac ? '⌘ K' : 'Ctrl K'
 
 const anosList = Object.entries(anos).map(([id, ano]) => ({
   id,
@@ -49,10 +54,12 @@ function applyFilters() {
 }
 
 function doSearch() {
+  clearTimeout(syncTimeout)
   applyFilters()
 }
 
 function selectAno(id) {
+  clearTimeout(syncTimeout)
   selectedAno.value = id
   if (id) {
     const alvo = anosList.find((a) => a.id === id)
@@ -64,11 +71,13 @@ function selectAno(id) {
 }
 
 function selectDisc(id) {
+  clearTimeout(syncTimeout)
   selectedDisc.value = id
   applyFilters()
 }
 
 function clearSearch() {
+  clearTimeout(syncTimeout)
   searchQuery.value = ''
   selectedAno.value = ''
   selectedDisc.value = ''
@@ -119,6 +128,12 @@ watch(
   },
 )
 
+watch(searchQuery, () => {
+  clearTimeout(syncTimeout)
+  syncTimeout = setTimeout(applyFilters, 400)
+})
+onBeforeUnmount(() => clearTimeout(syncTimeout))
+
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
@@ -158,7 +173,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           >
             <i class="mdi mdi-close"></i>
           </button>
-          <kbd v-if="!searchQuery" class="shortcutHint">Ctrl K</kbd>
+          <kbd v-if="!searchQuery" class="shortcutHint">{{ shortcutHint }}</kbd>
         </div>
 
         <div class="filterToggleRow">
@@ -251,38 +266,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
 
         <div v-if="results.length" :key="filterKey" class="resultsList">
-          <RouterLink
+          <AppListCard
             v-for="(r, idx) in results"
             :key="`${r.disciplina.id}-${r.atividade.id}`"
             :to="`/atividade/${r.disciplina.id}/${r.atividade.id}`"
-            class="resultItem"
             v-reveal.left="idx % 8"
           >
-            <div class="resultLeft">
+            <template #leading>
               <div class="resultIcon">
                 <i :class="`mdi ${r.disciplina.icon}`"></i>
               </div>
-              <div class="resultInfo">
-                <span class="resultBreadcrumb">
-                  <i class="mdi mdi-folder-outline"></i>
-                  {{ r.anoLabel }} / {{ r.disciplina.name }}
-                </span>
-                <h3 class="resultTitle" v-html="highlight(r.atividade.title)"></h3>
-                <p class="resultDesc" v-html="highlight(r.atividade.desc)"></p>
-                <div class="resultTags">
-                  <span class="resultTag">
-                    <i class="mdi mdi-cube-outline"></i>
-                    {{ r.atividade.blocks?.length || 0 }} blocos
-                  </span>
-                  <span v-if="(r.atividade.questoes || []).length" class="resultTag">
-                    <i class="mdi mdi-help-circle-outline"></i>
-                    {{ r.atividade.questoes.length }} questões
-                  </span>
-                </div>
-              </div>
+            </template>
+            <span class="resultBreadcrumb">
+              <i class="mdi mdi-folder-outline"></i>
+              {{ r.anoLabel }} / {{ r.disciplina.name }}
+            </span>
+            <h3 class="resultTitle" v-html="highlight(r.atividade.title)"></h3>
+            <p class="resultDesc" v-html="highlight(r.atividade.desc)"></p>
+            <div v-if="(r.atividade.questoes || []).length" class="resultTags">
+              <span class="resultTag">
+                <i class="mdi mdi-help-circle-outline"></i>
+                {{ r.atividade.questoes.length }} {{ r.atividade.questoes.length > 1 ? 'questões' : 'questão' }}
+              </span>
             </div>
-            <i class="mdi mdi-arrow-right resultArrow"></i>
-          </RouterLink>
+            <template #trailing>
+              <i class="mdi mdi-arrow-right"></i>
+            </template>
+          </AppListCard>
         </div>
 
         <div v-else class="emptyResult">
@@ -715,41 +725,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   gap: var(--sp-3);
 }
 
-.resultItem {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  transition: border-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.resultItem:hover {
-  border-color: var(--color-navy-accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.resultItem:active {
-  transform: translateY(0);
-}
-
-.resultLeft {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-4);
-  min-width: 0;
-  flex: 1;
-}
-
 .resultIcon {
   width: 40px;
   height: 40px;
@@ -764,11 +739,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .resultIcon i {
   font-size: 1.1rem;
   color: var(--color-navy-accent);
-}
-
-.resultInfo {
-  min-width: 0;
-  flex: 1;
 }
 
 .resultBreadcrumb {
@@ -827,7 +797,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   font-size: 0.75rem;
 }
 
-.resultItem:hover .resultTag {
+.listCard:hover .resultTag {
   background: var(--color-navy-accent-muted);
   border-color: var(--color-border-2);
   color: var(--color-navy-accent);
@@ -840,18 +810,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-radius: 3px;
   padding: 0 2px;
   font-weight: 600;
-}
-
-.resultArrow {
-  font-size: 1.2rem;
-  color: var(--color-text-5);
-  flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-spring);
-}
-
-.resultItem:hover .resultArrow {
-  color: var(--color-navy-accent);
-  transform: translateX(4px);
 }
 
 .emptyResult {
@@ -1085,8 +1043,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     grid-template-columns: 1fr;
   }
 
-  .resultItem {
-    padding: var(--sp-4);
-  }
 }
 </style>

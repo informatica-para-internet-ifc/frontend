@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import AppListCard from '../components/ui/AppListCard.vue'
 import { getAno } from '../data/disciplinas.js'
 
 const props = defineProps({
@@ -32,21 +33,19 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
       </div>
 
       <div class="disciplinasGrid">
-        <RouterLink
+        <AppListCard
           v-for="(disc, idx) in disciplinas"
           :key="disc.id"
           :to="`/disciplina/${anoId}/${disc.id}`"
-          class="disciplinaCard"
           v-reveal.left="idx"
         >
-          <div class="discIcon">
-            <i :class="`mdi ${disc.icon}`"></i>
-          </div>
-          <div class="discContent">
-            <h2 class="discName">{{ disc.name }}</h2>
-          </div>
-          <i class="mdi mdi-chevron-right discArrow"></i>
-        </RouterLink>
+          <template #leading>
+            <div class="discIcon">
+              <i :class="`mdi ${disc.icon}`"></i>
+            </div>
+          </template>
+          <h2 class="discName">{{ disc.name }}</h2>
+        </AppListCard>
       </div>
     </div>
 
@@ -108,32 +107,6 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   gap: var(--sp-3);
 }
 
-.disciplinaCard {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  transition: border-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-  cursor: pointer;
-}
-
-.disciplinaCard:hover {
-  border-color: var(--color-navy-accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.disciplinaCard:active {
-  transform: translateY(0);
-}
-
 .discIcon {
   width: 48px;
   height: 48px;
@@ -146,7 +119,7 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   transition: background var(--duration-fast) var(--ease-out);
 }
 
-.disciplinaCard:hover .discIcon {
+.listCard:hover .discIcon {
   background: var(--color-navy-accent);
 }
 
@@ -156,13 +129,8 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   transition: color var(--duration-fast) var(--ease-out);
 }
 
-.disciplinaCard:hover .discIcon i {
+.listCard:hover .discIcon i {
   color: var(--color-text-on-accent);
-}
-
-.discContent {
-  flex: 1;
-  min-width: 0;
 }
 
 .discName {
@@ -171,25 +139,9 @@ const disciplinas = computed(() => ano.value?.disciplinas || [])
   color: var(--color-text-1);
 }
 
-.discArrow {
-  font-size: 1.2rem;
-  color: var(--color-text-5);
-  flex-shrink: 0;
-  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-}
-
-.disciplinaCard:hover .discArrow {
-  color: var(--color-navy-accent);
-  transform: translateX(3px);
-}
-
 @media (max-width: 480px) {
   .anoTitle {
     font-size: var(--text-2xl);
-  }
-
-  .disciplinaCard {
-    padding: var(--sp-4);
   }
 }
 </style>

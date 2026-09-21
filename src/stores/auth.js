@@ -4,9 +4,6 @@ import { request } from '../api/client.js'
 
 const STORAGE_KEY = 'sio-user'
 
-const DEMO_EMAIL = 'monitoria@ifc.edu.br'
-const DEMO_PASSWORD = 'senha-segura'
-
 function loadSession() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -64,28 +61,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function quickLogin() {
-    const ok = await login(DEMO_EMAIL, DEMO_PASSWORD)
-    if (!ok) {
-      // Demo offline: sem backend, mantém sessão local simulada
-      const demo = { token: null, user: { nome: 'Monitoria', email: DEMO_EMAIL, avatar: 'M' } }
-      session.value = demo
-      saveSession(demo)
-    }
-  }
-
   function logout() {
     session.value = null
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  async function toggle() {
-    if (user.value) {
-      logout()
-    } else {
-      await quickLogin()
-    }
-  }
-
-  return { session, user, isLoggedIn, logged, login, quickLogin, logout, toggle }
+  return { session, user, isLoggedIn, logged, login, logout }
 })

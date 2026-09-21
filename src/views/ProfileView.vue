@@ -77,13 +77,6 @@ async function handleLogout() {
   isLoading.value = false
 }
 
-async function handleQuickLogin() {
-  isLoading.value = true
-  await auth.quickLogin()
-  isLoading.value = false
-  const redirect = router.currentRoute.value.query.redirect
-  if (redirect) router.push(redirect)
-}
 </script>
 
 <template>
@@ -262,15 +255,6 @@ async function handleQuickLogin() {
                 {{ isLoading ? 'Entrando...' : 'Entrar' }}
               </button>
             </form>
-
-            <div class="divider">
-              <span>ou</span>
-            </div>
-
-            <button class="quickLoginBtn" @click="handleQuickLogin" :disabled="isLoading">
-              <i class="mdi mdi-flash-outline"></i>
-              Entrar rápido (Demo)
-            </button>
           </div>
           </div>
         </div>
@@ -449,56 +433,6 @@ async function handleQuickLogin() {
 }
 
 .loginBtn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.divider {
-  width: 100%;
-  height: 1px;
-  background: var(--color-border-1);
-  position: relative;
-}
-
-.divider span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 0 var(--sp-3);
-  background: var(--color-surface-2);
-  font-size: var(--text-xs);
-  color: var(--color-text-5);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-}
-
-.quickLoginBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-6);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-3);
-  border: 1px solid var(--color-border-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-2);
-  cursor: pointer;
-  transition: all var(--duration-normal) var(--ease-spring);
-  width: 100%;
-  justify-content: center;
-}
-
-.quickLoginBtn:hover {
-  border-color: var(--color-navy-accent);
-  color: var(--color-navy-accent);
-  background: var(--color-navy-accent-muted);
-  transform: translateY(-1px);
-}
-
-.quickLoginBtn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;

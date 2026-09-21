@@ -3,20 +3,21 @@ import { RouterLink, useRoute } from 'vue-router'
 import AppLogo from '../ui/logo/AppLogo.vue'
 import ThemeToggle from '../ui/themeButton/ThemeToggle.vue'
 import UserButton from '../ui/user/UserButton.vue'
-import { anos } from '../../../data/disciplinas.js'
 import { useAuthStore } from '../../../stores/auth.js'
+import { useInstallPrompt } from '../../../composables/useInstallPrompt.js'
 
 defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 const route = useRoute()
 const auth = useAuthStore()
+const { canInstall, promptInstall } = useInstallPrompt()
+
+function install() {
+  promptInstall()
+  emit('close')
+}
 
 function isActive(path) { return route.path === path }
-
-const anosList = Object.entries(anos).map(([id, ano]) => ({
-  id, label: ano.label, desc: ano.desc,
-  icon: id === '1' ? 'mdi-numeric-1-box-outline' : id === '2' ? 'mdi-numeric-2-box-outline' : 'mdi-numeric-3-box-outline',
-}))
 </script>
 
 <template>
@@ -26,12 +27,11 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
     </Transition>
 
     <Transition name="drawer">
-      <aside v-if="open" class="sidebar">
-        <div class="sidebarDots"></div>
+      <aside id="sidebar-drawer" v-if="open" class="sidebar" role="dialog" aria-modal="true" aria-label="Menu de navegação">
         <div class="sidebarBorder"></div>
 
         <div class="sidebarHeader">
-          <AppLogo @click="emit('close')" />
+          <AppLogo desc="Curso Técnico em Informática" small @click="emit('close')" />
           <button class="closeBtn" aria-label="Fechar menu" @click="emit('close')">
             <i class="mdi mdi-close"></i>
           </button>
@@ -39,45 +39,44 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 
         <nav class="sidebarNav">
           <RouterLink to="/" class="sidebarLink" :class="{ active: isActive('/') }" :style="{ '--i': 0 }" @click="emit('close')">
-            <i class="mdi mdi-home-outline"></i>
+            <i class="mdi mdi-school-outline"></i>
             Início
           </RouterLink>
 
-          <RouterLink to="/anos" class="sidebarLink" :class="{ active: isActive('/anos') }" :style="{ '--i': 1 }" @click="emit('close')">
-            <i class="mdi mdi-school-outline"></i>
-            Anos
-          </RouterLink>
-
-          <RouterLink
-            v-for="(ano, i) in anosList" :key="ano.id"
-            :to="`/ano/${ano.id}`"
-            class="sidebarLink sidebarLinkSub"
-            :class="{ active: isActive(`/ano/${ano.id}`) }"
-            :style="{ '--i': i + 2 }"
-            @click="emit('close')"
-          >
-            <i :class="`mdi ${ano.icon}`"></i>
-            {{ ano.label }}
-          </RouterLink>
-
-          <RouterLink to="/buscar" class="sidebarLink" :class="{ active: isActive('/buscar') }" :style="{ '--i': 5 }" @click="emit('close')">
+          <RouterLink to="/buscar" class="sidebarLink" :class="{ active: isActive('/buscar') }" :style="{ '--i': 1 }" @click="emit('close')">
             <i class="mdi mdi-magnify"></i>
             Buscar
           </RouterLink>
 
-          <div class="sidebarDivider" :style="{ '--i': 6 }"></div>
+          <RouterLink to="/sobre" class="sidebarLink" :class="{ active: isActive('/sobre') }" :style="{ '--i': 2 }" @click="emit('close')">
+            <i class="mdi mdi-information-outline"></i>
+            Sobre
+          </RouterLink>
 
-          <RouterLink v-if="auth.logged" to="/criar-atividade" class="sidebarLink sidebarLinkAccent" :class="{ active: isActive('/criar-atividade') }" :style="{ '--i': 7 }" @click="emit('close')">
+          <button v-if="canInstall" type="button" class="sidebarLink" :style="{ '--i': 3 }" @click="install">
+            <i class="mdi mdi-download-outline"></i>
+            Instalar app
+          </button>
+
+          <div v-if="auth.logged" class="sidebarDivider" :style="{ '--i': 4 }"></div>
+
+          <RouterLink
+            v-if="auth.logged"
+            to="/criar-atividade"
+            class="sidebarLink sidebarLinkAccent"
+            :class="{ active: isActive('/criar-atividade') }"
+            :style="{ '--i': 5 }"
+            @click="emit('close')"
+          >
             <i class="mdi mdi-plus-circle"></i>
             Criar Atividade
           </RouterLink>
-
         </nav>
 
         <div class="sidebarFooter">
           <div class="sidebarFooterRow">
             <ThemeToggle />
-            <UserButton />
+            <UserButton @click="emit('close')" />
           </div>
         </div>
       </aside>
@@ -111,20 +110,7 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   overflow: hidden;
 }
 
-/* ── Ambient Dots ── */
-.sidebarDots {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: radial-gradient(var(--color-navy-accent) 0.5px, transparent 0.5px);
-  background-size: 20px 20px;
-  opacity: 0.04;
-  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, black 20%, transparent 70%);
-  pointer-events: none;
-}
-
-/* ── Animated Border ── */
+/* ── Border ── */
 .sidebarBorder {
   position: absolute;
   right: -1px;
@@ -134,18 +120,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   z-index: 1;
   background: linear-gradient(180deg, transparent 0%, var(--color-border-2) 15%, var(--color-border-2) 85%, transparent 100%);
 }
-
-.sidebarBorder::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(from 0deg, transparent, var(--color-navy-accent-muted), transparent, var(--color-navy-accent-muted), transparent);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
-  animation: borderSpin 4s linear infinite;
-}
-
-@keyframes borderSpin { to { transform: rotate(360deg); } }
 
 
 /* ── Header ── */
@@ -183,6 +157,9 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   position: relative;
   z-index: 2;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: var(--sp-3);
   overflow-y: auto;
 }
@@ -190,13 +167,19 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 .sidebarLink {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
+  border: none;
   border-radius: var(--radius-md);
+  background: transparent;
+  font-family: inherit;
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--color-text-2);
   text-decoration: none;
+  text-align: left;
+  cursor: pointer;
   transition: all 0.3s var(--ease-out);
   position: relative;
   overflow: hidden;
@@ -243,50 +226,42 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
 .sidebarLink.active::before { transform: translateY(-50%) scaleY(1); }
 
 .sidebarLinkAccent {
-  color: #ffffff;
+  color: var(--color-text-on-accent);
   background: var(--color-navy-accent);
   font-weight: 600;
-  box-shadow: 0 1px 4px var(--color-navy-accent-muted);
   transition: all 0.3s var(--ease-out);
 }
 
 .sidebarLinkAccent i {
-  transition: transform 0.3s var(--ease-spring);
+  transition: transform 0.3s var(--ease-out);
 }
 
 .sidebarLinkAccent:hover {
   background: var(--color-navy-accent-hover, var(--color-navy-accent));
-  color: #ffffff;
+  color: var(--color-text-on-accent);
   padding-left: var(--sp-5);
-  box-shadow: 0 4px 16px var(--color-navy-accent-muted);
   transform: translateY(-1px);
 }
 
 .sidebarLinkAccent:hover i {
-  color: #ffffff;
-  transform: scale(1.15) rotate(-90deg);
+  color: var(--color-text-on-accent);
+  transform: scale(1.1);
 }
 
 .sidebarLinkAccent.active {
   background: var(--color-navy-accent);
-  color: #ffffff;
-  box-shadow: 0 1px 4px var(--color-navy-accent-muted);
+  color: var(--color-text-on-accent);
 }
 
 .sidebarLinkAccent.active i {
-  color: #ffffff;
+  color: var(--color-text-on-accent);
 }
 
 .sidebarLinkAccent::before {
   background: rgba(255, 255, 255, 0.4);
 }
 
-.sidebarLinkAccent.active::before { background: #ffffff; }
-
-.sidebarLinkSub {
-  padding-left: var(--sp-8);
-  font-size: var(--text-sm);
-}
+.sidebarLinkAccent.active::before { background: var(--color-text-on-accent); }
 
 .sidebarDivider {
   height: 1px;
@@ -300,8 +275,6 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   color: var(--color-text-4);
   transition: transform 0.3s var(--ease-spring), color 0.3s var(--ease-out);
 }
-
-.sidebarLinkSub i { font-size: 1rem; }
 
 .sidebarLink:hover i,
 .sidebarLink.active i { color: var(--color-navy-accent); }
@@ -319,6 +292,7 @@ const anosList = Object.entries(anos).map(([id, ano]) => ({
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-3);
 }
 
 /* ── Transitions ── */

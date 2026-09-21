@@ -1,31 +1,47 @@
 <script setup>
 import { RouterView, useRoute } from 'vue-router'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import AppHeader from '../src/components/layout/header/AppHeader.vue'
+import AppFooter from '../src/components/layout/AppFooter.vue'
+import BackToTop from '../src/components/layout/ui/BackToTop.vue'
+import ToastStack from '../src/components/layout/ui/ToastStack.vue'
 
 const route = useRoute()
 const pageKey = computed(() => route.fullPath)
 const transitionDir = ref('forward')
+
+function moveFocusToMain() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('conteudo')?.focus({ preventScroll: true })
+    })
+  })
+}
 
 watch(
   () => route.path,
   (to, from) => {
     const depth = (p) => p.split('/').filter(Boolean).length
     transitionDir.value = depth(to) >= depth(from || '') ? 'forward' : 'back'
+    moveFocusToMain()
   },
 )
 </script>
 
 <template>
   <div class="app">
+    <a href="#conteudo" class="skipLink">Pular para o conteúdo</a>
     <AppHeader />
-    <main class="main">
+    <main id="conteudo" class="main" tabindex="-1">
       <RouterView v-slot="{ Component }">
         <Transition :name="`page-${transitionDir}`" mode="out-in">
           <component :is="Component" :key="pageKey" />
         </Transition>
       </RouterView>
     </main>
+    <AppFooter />
+    <BackToTop />
+    <ToastStack />
   </div>
 </template>
 
@@ -41,6 +57,29 @@ watch(
   flex: 1;
   min-height: calc(100vh - var(--header-h));
   animation: mainEnter 0.6s var(--ease-out) both;
+  outline: none;
+}
+
+/* ── Skip link ── */
+.skipLink {
+  position: fixed;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  z-index: 999;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--color-navy);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-200%);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.skipLink:focus {
+  transform: translateY(0);
 }
 
 @keyframes mainEnter {

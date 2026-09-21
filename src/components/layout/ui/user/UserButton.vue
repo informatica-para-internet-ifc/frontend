@@ -6,12 +6,7 @@ const auth = useAuthStore()
 </script>
 
 <template>
-  <RouterLink
-    to="/perfil"
-    class="userBtn"
-    :class="{ loggedIn: auth.logged }"
-    @click.prevent="auth.toggle()"
-  >
+  <RouterLink to="/perfil" class="userBtn" :class="{ loggedIn: auth.logged }">
     <Transition name="icon" mode="out-in">
       <span v-if="auth.logged" key="avatar" class="userAvatar">U</span>
       <i v-else key="login" class="mdi mdi-login-variant"></i>
@@ -38,10 +33,9 @@ const auth = useAuthStore()
 }
 
 .userBtn:not(.loggedIn):hover {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: #ffffff;
-  box-shadow: 0 2px 16px var(--color-navy-accent-muted);
+  background: var(--color-navy-accent-muted);
+  border-color: var(--color-navy-accent);
+  color: var(--color-navy-accent);
   transform: translateY(-1px);
 }
 
@@ -77,14 +71,13 @@ const auth = useAuthStore()
   height: 38px;
   border-radius: var(--radius-full);
   background: var(--color-navy-accent);
-  color: #ffffff;
+  color: var(--color-text-on-accent);
   font-size: var(--text-sm);
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  box-shadow: 0 2px 8px var(--color-navy-accent-muted);
 }
 
 .icon-enter-active { transition: all 0.2s var(--ease-spring); }

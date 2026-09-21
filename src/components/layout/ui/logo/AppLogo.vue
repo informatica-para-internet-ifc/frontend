@@ -18,7 +18,7 @@ defineEmits(['click'])
     @click="$emit('click')"
   >
     <div class="brandIcon" :class="{ small }">
-      <img src="@/assets/img/logo/logo-sem-borda.svg" alt="Logo" class="brandImg" />
+      <span class="brandImg" role="img" aria-label="Logo"></span>
     </div>
     <div class="brandText">
       <span class="brandName">
@@ -56,13 +56,20 @@ defineEmits(['click'])
   width: 36px;
   height: 36px;
   display: block;
-  filter: var(--color-logo-filter, none);
-  transition: transform 0.4s var(--ease-out), filter 0.4s var(--ease-out);
+  background-color: var(--color-navy-accent);
+  -webkit-mask-image: url('@/assets/img/logo/logo.svg');
+  mask-image: url('@/assets/img/logo/logo.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: transform 0.4s var(--ease-out), background-color 0.4s var(--ease-out);
 }
 
 .brand:hover .brandImg {
-  transform: scale(1.08);
-  filter: var(--color-logo-filter, none) drop-shadow(0 0 14px var(--color-navy-accent-muted));
+  transform: scale(1.05);
 }
 
 .brandIcon.small .brandImg {
@@ -86,7 +93,7 @@ defineEmits(['click'])
 .brand.small .brandName { font-size: var(--text-base); }
 
 .brandPrimary {
-  color: var(--color-text-1);
+  color: var(--color-navy-accent);
   transition: color 0.4s var(--ease-out);
 }
 

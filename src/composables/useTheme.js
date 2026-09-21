@@ -1,11 +1,22 @@
 import { ref, computed, watchEffect } from 'vue'
 
-const theme = ref(localStorage.getItem('sio-theme') || 'dark')
+const stored = localStorage.getItem('sio-theme')
+const prefersLight =
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-color-scheme: light)').matches
+
+const theme = ref(stored === 'light' || stored === 'dark' ? stored : prefersLight ? 'light' : 'dark')
 const isDark = computed(() => theme.value === 'dark')
+
+const THEME_COLORS = { dark: '#0a0a0a', light: '#fafaf9' }
 
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme.value)
   localStorage.setItem('sio-theme', theme.value)
+  const color = THEME_COLORS[theme.value]
+  document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
+    el.setAttribute('content', color)
+  })
 }
 
 applyTheme()

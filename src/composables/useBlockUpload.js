@@ -1,5 +1,8 @@
 import { ref } from 'vue'
 import { useToast } from './useToast.js'
+import { compressImage } from '../utils/compressImage.js'
+
+const MAX_UPLOAD_BYTES = 950 * 1024
 
 export function useBlockUpload() {
   const toast = useToast()
@@ -13,7 +16,13 @@ export function useBlockUpload() {
     if (!file) return
     uploading.value = { ...uploading.value, [key]: true }
     try {
-      const result = await uploadFn(file)
+      const isImage = file.type?.startsWith('image/')
+      const toSend = isImage ? await compressImage(file) : file
+      if (isImage && toSend.size > MAX_UPLOAD_BYTES) {
+        toast.error('Essa imagem é muito grande, mesmo depois de compactada. Tente uma imagem menor.')
+        return
+      }
+      const result = await uploadFn(toSend)
       onSuccess(result)
     } catch (err) {
       toast.error(err.message || 'Falha ao enviar o arquivo.')

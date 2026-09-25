@@ -1,4 +1,5 @@
 <script setup>
+import { fixMediaUrl } from '../../api/client.js'
 import { renderMarkdown } from '../../composables/useMarkdown.js'
 import {
   getAlertIcon,
@@ -81,7 +82,7 @@ defineProps({
             </div>
 
             <div v-else-if="block.type === 'image' && block.url" class="previewBlock">
-              <img :src="block.url" :alt="block.alt || ''" class="previewImage" />
+              <img :src="fixMediaUrl(block.url)" :alt="block.alt || ''" class="previewImage" />
               <p v-if="block.alt" class="previewImageAlt">{{ block.alt }}</p>
             </div>
 
@@ -136,7 +137,7 @@ defineProps({
                 ></iframe>
               </div>
               <div v-else-if="isDirectVideoUrl(block.url)" class="previewVideoWrap">
-                <video :src="block.url" controls preload="metadata"></video>
+                <video :src="fixMediaUrl(block.url)" controls preload="metadata"></video>
               </div>
               <p v-if="block.title" class="previewVideoTitle">{{ block.title }}</p>
             </div>
@@ -159,7 +160,7 @@ defineProps({
             </div>
 
             <div v-else-if="block.type === 'file' && block.url" class="previewBlock">
-              <a :href="block.url" target="_blank" rel="noopener" class="fileCardPreview" title="Abrir/baixar arquivo">
+              <a :href="fixMediaUrl(block.url)" target="_blank" rel="noopener" class="fileCardPreview" title="Abrir/baixar arquivo">
                 <div class="fileCardIcon">
                   <i :class="`mdi ${getFileIcon(getFileType(block.url))}`"></i>
                 </div>

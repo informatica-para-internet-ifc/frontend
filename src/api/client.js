@@ -120,4 +120,12 @@ function unwrapPaged(data) {
   return []
 }
 
-export { BASE_URL, request, uploadFile, toQueryString, unwrapPaged }
+// Arquivos enviados guardam a URL absoluta gerada pelo backend no momento do upload.
+// Se o backend estava sem BACKEND_URL, essa URL aponta para localhost; aqui ela é
+// reescrita para o endereço real da API.
+function fixMediaUrl(url) {
+  if (typeof url !== 'string') return url
+  return url.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?=\/)/i, BASE_URL)
+}
+
+export { BASE_URL, request, uploadFile, toQueryString, unwrapPaged, fixMediaUrl }

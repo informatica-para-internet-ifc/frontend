@@ -1,4 +1,6 @@
 <script setup>
+import { fixMediaUrl } from '../../../api/client.js'
+
 defineProps({
   block: { type: Object, required: true },
 })
@@ -9,7 +11,8 @@ function getFileType(url) {
   return m ? m[1].toLowerCase() : ''
 }
 
-function getDownloadUrl(url, filename) {
+function getDownloadUrl(rawUrl, filename) {
+  const url = fixMediaUrl(rawUrl)
   if (!url) return url
   const marker = '/upload/'
   const idx = url.indexOf(marker)
@@ -49,12 +52,12 @@ function getFileIcon(type) {
       rel="noopener"
     >
       <div class="fileCardViewIcon">
-        <i :class="`mdi ${getFileIcon(getFileType(block.url))}`"></i>
+        <i :class="`mdi ${getFileIcon(getFileType(block.label || block.url))}`"></i>
       </div>
       <div class="fileCardViewBody">
         <span class="fileCardViewName">{{ block.label || block.url }}</span>
         <span class="fileCardViewMeta">
-          {{ getFileType(block.url).toUpperCase() }}
+          {{ getFileType(block.label || block.url).toUpperCase() }}
           <template v-if="block.size"> · {{ block.size }}</template>
         </span>
         <span v-if="block.desc" class="fileCardViewDesc">{{ block.desc }}</span>

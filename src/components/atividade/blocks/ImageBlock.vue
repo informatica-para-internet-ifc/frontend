@@ -1,4 +1,6 @@
 <script setup>
+import { fixMediaUrl } from '../../../api/client.js'
+
 defineProps({
   block: { type: Object, required: true },
 })
@@ -6,7 +8,7 @@ defineProps({
 
 <template>
   <div class="viewBlock viewImage">
-    <img :src="block.url" :alt="block.alt || ''" class="viewImageEl" />
+    <img :src="fixMediaUrl(block.url)" :alt="block.alt || ''" class="viewImageEl" />
     <p v-if="block.alt" class="viewImageAlt">{{ block.alt }}</p>
   </div>
 </template>

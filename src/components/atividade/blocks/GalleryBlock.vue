@@ -1,4 +1,6 @@
 <script setup>
+import { fixMediaUrl } from '../../../api/client.js'
+
 defineProps({
   block: { type: Object, required: true },
 })
@@ -8,7 +10,7 @@ defineProps({
   <div class="viewBlock viewGallery">
     <div class="galleryGrid">
       <figure v-for="(img, gi) in block.images.filter((g) => g.url)" :key="gi" class="galleryFig">
-        <img :src="img.url" :alt="img.caption || ''" loading="lazy" />
+        <img :src="fixMediaUrl(img.url)" :alt="img.caption || ''" loading="lazy" />
         <figcaption v-if="img.caption">{{ img.caption }}</figcaption>
       </figure>
     </div>

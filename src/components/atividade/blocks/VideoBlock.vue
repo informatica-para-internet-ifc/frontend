@@ -1,4 +1,5 @@
 <script setup>
+import { fixMediaUrl } from '../../../api/client.js'
 defineProps({
   block: { type: Object, required: true },
 })
@@ -31,7 +32,7 @@ function isDirectVideoUrl(url) {
       ></iframe>
     </div>
     <div v-else-if="isDirectVideoUrl(block.url)" class="videoWrap">
-      <video :src="block.url" controls preload="metadata"></video>
+      <video :src="fixMediaUrl(block.url)" controls preload="metadata"></video>
     </div>
     <p v-if="block.title" class="viewVideoTitle">{{ block.title }}</p>
   </div>
